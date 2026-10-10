@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  greyhound-engine:
+    build: .
+    container_name: greyhound_engine
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      # Mount the database file so it persists securely across container rebuilds/restarts
+      - ./greyhound_racing.db:/app/greyhound_racing.db
+    environment:
+      - TZ=Australia/Sydney

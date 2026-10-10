@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Greyhound Precision Multi-Betting Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              900: '#060B14',
+              800: '#0A1118',
+              700: '#121A22',
+              600: '#1A2634',
+              500: '#1E2A3C',
+            },
+            accent: {
+              teal: '#06B6D4',
+              green: '#10B981',
+              red: '#EF4444',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0A1118; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1E2A3C; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    
+    .card { background-color: #1A2634; border: 1px solid #1E2A3C; border-radius: 6px; }
+    
+    /* Box Colors */
+
+    [class*="badge-box-"] {
+      text-shadow: 
+        -2px -2px 0 #000,  
+         0   -2px 0 #000,
+         2px -2px 0 #000,
+         2px  0   0 #000,
+         2px  2px 0 #000,
+         0    2px 0 #000,
+        -2px  2px 0 #000,
+        -2px  0   0 #000 !important;
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.5);
+    }
+
+    .badge-box-1 { background-color: #dc2626; color: #ffffff; border: 1px solid #991b1b; font-weight: 700; text-align: center;} 
+    .badge-box-2 { 
+      background-color: #000000;
+      background-image: 
+        linear-gradient(45deg, #ffffff 25%, transparent 25%), 
+        linear-gradient(-45deg, #ffffff 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #ffffff 75%), 
+        linear-gradient(-45deg, transparent 75%, #ffffff 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      color: #ffffff;
+      border: 1px solid #ffffff;
+      text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+      font-weight: 900;
+      text-align: center;
+    } 
+    .badge-box-3 { background-color: #ffffff; color: #ffffff; border: 1px solid #94A3B8; font-weight: 800; text-align: center;} 
+    .badge-box-4 { background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-weight: 700; text-align: center;} 
+    .badge-box-5 { background-color: #facc15; color: #ffffff; border: 1px solid #ca8a04; font-weight: 800; text-align: center;} 
+    .badge-box-6 { background-color: #16a34a; color: #ffffff; border: 1px solid #15803d; font-weight: 700; text-align: center;} 
+    .badge-box-7 { background-color: #09090b; color: #ffffff; border: 1px solid #3f3f46; font-weight: 700; text-align: center;} 
+    .badge-box-8 { background-color: #f43f5e; color: #ffffff; border: 1px solid #be123c; font-weight: 700; text-align: center;} 
+    .badge-box-9 { background: repeating-linear-gradient(45deg, #16a34a, #16a34a 4px, #ffffff 4px, #ffffff 8px); color: #ffffff; border: 1px solid #15803d; font-weight: 800; text-align: center;} 
+    .badge-box-10 { background: repeating-linear-gradient(45deg, #9333ea, #9333ea 4px, #ffffff 4px, #ffffff 8px); color: #ffffff; border: 1px solid #7e22ce; font-weight: 800; text-align: center;} 
+    
+    .active-tab { border-bottom: 2px solid #06B6D4; color: #06B6D4; font-weight: 600; }
+    
+    table { width: 100%; text-align: left; border-collapse: collapse; }
+    th { font-size: 11px; text-transform: uppercase; color: #94A3B8; font-weight: 600; padding: 10px 12px; border-bottom: 1px solid #1E2A3C; }
+    td { padding: 10px 12px; border-bottom: 1px solid #1E2A3C; font-size: 12px; font-variant-numeric: tabular-nums; }
+    tr:hover td { background-color: rgba(255, 255, 255, 0.02); }
+    
+    .glass-btn { background: rgba(30, 42, 60, 0.6); border: 1px solid #1E2A3C; color: #E2E8F0; }
+    .glass-btn:hover { background: rgba(30, 42, 60, 1); border-color: #334155; }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-navy-800 text-slate-200 text-sm font-sans">
+
+  <!-- Header -->
+  <header class="bg-navy-700 border-b border-navy-500 px-5 py-3 flex items-center justify-between shrink-0 z-20">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 flex items-center justify-center shrink-0">
+        <img src="/static/greyhound_logo.png" alt="Greyhound Logo" class="w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+      </div>
+      <div>
+        <h1 class="text-[16px] font-bold text-white tracking-wide leading-tight">Greyhound Precision Engine</h1>
+        <p class="text-[10px] text-slate-400 leading-tight uppercase tracking-wider mt-0.5">Quantitative Multi-Bet Optimizer & Sectional Modeling</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <a href="/api/export/predictions" download="historical_predictions.txt" class="glass-btn px-3 py-1.5 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-download text-slate-400"></i><span>Export DB</span>
+      </a>
+      <button onclick="triggerAction('sportsbet')" id="btn-sportsbet" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-bolt"></i><span>Sync Sportsbet Odds</span>
+      </button>
+      <button onclick="triggerAction('thedogs')" id="btn-thedogs" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-rotate"></i><span>Fetch Race Cards</span>
+      </button>
+      <button onclick="triggerAction('live-odds')" id="btn-live-odds" class="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-dollar-sign"></i><span>Poll TheDogs SP</span>
+      </button>
+      <button onclick="triggerAction('scratchings')" id="btn-scratchings" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-ban"></i><span>Sync Scratchings</span>
+      </button>
+      <button onclick="triggerAction('fasttrack')" id="btn-fasttrack" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-cloud-arrow-down"></i><span>FastTrack Form</span>
+      </button>
+      <button onclick="triggerAction('weather')" id="btn-weather" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-cloud-sun-rain"></i><span>Weather</span>
+      </button>
+      <button onclick="switchTab('learning')" id="btn-quick-learning" class="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 border border-violet-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+        <i class="fa-solid fa-brain"></i><span>Daily Audit</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Status Bar -->
+  <div class="bg-[#0A1118] border-b border-navy-500 px-5 py-2 flex flex-wrap items-center justify-between text-[11px] shrink-0 z-10 shadow-sm">
+    <div class="flex items-center space-x-5 text-slate-400">
+      <div>Meetings: <span id="stat-meetings" class="font-bold text-slate-200">0</span></div>
+      <div>Races Loaded: <span id="stat-races" class="font-bold text-slate-200">0</span></div>
+      <div>Runners Tracked: <span id="stat-runners" class="font-bold text-slate-200">0</span></div>
+      <div>Past Starts: <span id="stat-pp" class="font-bold text-accent-teal">0</span></div>
+      <div>Weather: <span id="stat-weather" class="font-bold text-amber-400">0</span></div>
+    </div>
+    
+    <div class="flex items-center space-x-3">
+      <div id="daemon-badge-container" class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
+        <span id="daemon-pulse" class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block animate-pulse"></span>
+        <span id="daemon-status-text" class="text-slate-300 font-mono">Daemon: Active (60s)</span>
+        <button onclick="toggleDaemon()" id="btn-daemon-toggle" class="ml-1 px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-white transition">Pause</button>
+        <button onclick="pollDaemonNow()" id="btn-daemon-now" class="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition"><i class="fa-solid fa-bolt"></i></button>
+      </div>
+      
+      <div class="flex items-center space-x-1.5 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
+        <i class="fa-solid fa-clock text-accent-teal"></i>
+        <span class="text-slate-400">Timezone:</span>
+        <select id="tz-select" onchange="changeTimezone(this.value)" class="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer">
+          <option value="AWST" selected>AWST (WA - UTC+8)</option>
+          <option value="AEDT">AEDT (East Coast UTC+11)</option>
+        </select>
+      </div>
+      
+      <div id="live-task-indicator" class="flex items-center space-x-1.5 text-slate-400 italic text-[10px]">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block"></span>
+        <span id="task-text" class="truncate max-w-[150px]">All scrapers idle</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <main class="flex-1 flex overflow-hidden">
+    
+    <!-- Sidebar -->
+    <aside class="w-48 bg-[#0D1520] border-r border-navy-500 flex flex-col shrink-0">
+      <nav class="flex-1 px-3 py-5 space-y-1.5">
+        <a href="#" onclick="switchTab('analysis')" id="side-nav-home" class="flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm">
+          <i class="fa-solid fa-house w-4 text-center"></i><span>Home</span>
+        </a>
+        <a href="#" onclick="switchTab('analysis'); document.getElementById('track-search-input').focus();" id="side-nav-cards" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
+          <i class="fa-regular fa-calendar-days w-4 text-center"></i><span>Race Cards</span>
+        </a>
+        <a href="#" onclick="switchTab('analysis')" id="side-nav-analysis" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
+          <i class="fa-solid fa-chart-column w-4 text-center"></i><span>Analytics</span>
+        </a>
+        <a href="#" onclick="switchTab('multis')" id="side-nav-multis" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
+          <i class="fa-solid fa-layer-group w-4 text-center"></i><span>Multi-Bet Optimizer</span>
+        </a>
+        <a href="#" onclick="switchTab('backtest')" id="side-nav-backtest" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
+          <i class="fa-regular fa-lightbulb w-4 text-center"></i><span>Strategies</span>
+        </a>
+        <a href="#" onclick="switchTab('settings');" id="side-nav-settings" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm mt-4">
+          <i class="fa-solid fa-gear w-4 text-center"></i><span>Settings</span>
+        </a>
+      </nav>
+      <div class="p-4 border-t border-navy-500">
+        <div class="bg-accent-green/10 border border-accent-green/20 rounded-md px-3 py-2 flex flex-col items-start">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-accent-green"></span>
+            <span class="text-accent-green text-[11px] font-bold">System Online</span>
+          </div>
+          <span class="text-slate-500 text-[9px] mt-1">All modules running</span>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Race Cards Panel -->
+    <section class="w-[330px] bg-[#0E1724] border-r border-navy-500 flex flex-col shrink-0">
+      <div class="px-4 py-4 flex items-center justify-between border-b border-navy-500">
+        <div class="flex items-center space-x-2 text-slate-200">
+          <i class="fa-solid fa-ticket text-slate-400"></i>
+          <h2 class="text-sm font-semibold tracking-wide">RACE CARDS</h2>
+        </div>
+        <div class="flex bg-navy-800 rounded p-0.5 text-[10px] font-medium border border-navy-500">
+          <button onclick="loadRaces('upcoming')" id="tab-upcoming" class="px-2.5 py-1 rounded bg-navy-600 text-white shadow-sm">Upcoming</button>
+          <button onclick="loadRaces('all')" id="tab-all" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">All</button>
+          <button onclick="loadRaces('completed')" id="tab-completed" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Results</button>
+        </div>
+      </div>
+      
+      <div class="px-4 py-3 border-b border-navy-500 flex flex-col space-y-2">
+        <div class="relative w-full">
+          <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-[11px]"></i>
+          <input type="text" id="track-search-input" oninput="filterRaces()" placeholder="Filter track e.g. Mandurah..." class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 text-[11px] pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-accent-teal transition">
+        </div>
+        <select id="track-select-filter" onchange="filterRaces()" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 text-[11px] px-2.5 py-1.5 focus:outline-none focus:border-accent-teal transition appearance-none">
+          <option value="">All Tracks (91)</option>
+        </select>
+      </div>
+      
+      <!-- List container -->
+      <div id="race-list" class="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Main Workspace -->
+    <section class="flex-1 bg-navy-800 flex flex-col min-w-0 overflow-y-auto relative">
+      
+      <!-- Top Navigation Tabs -->
+      <div class="border-b border-navy-500 px-6 pt-4 flex space-x-6 text-[12px] bg-[#0A1118] sticky top-0 z-10">
+        <button onclick="switchTab('analysis')" id="tab-nav-analysis" class="pb-3 active-tab flex items-center space-x-2 transition">
+          <i class="fa-solid fa-chart-line text-accent-teal"></i><span>RACE ANALYSIS & ODDS</span>
+        </button>
+        <button onclick="switchTab('multis')" id="tab-nav-multis" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+          <i class="fa-solid fa-trophy text-amber-500/70"></i><span>Multi Optimizer (+EV)</span>
+        </button>
+        <button onclick="switchTab('backtest')" id="tab-nav-backtest" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+          <i class="fa-solid fa-flask text-emerald-500/70"></i><span>Backtest & Strategy Lab</span>
+        </button>
+        <button onclick="switchTab('learning')" id="tab-nav-learning" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+          <i class="fa-solid fa-book-open text-purple-500/70"></i><span>Daily Learning & Audit</span>
+        </button>
+      </div>
+      
+      <div class="p-6 max-w-[1400px] w-full mx-auto">
+        
+        <!-- View 1: Analysis -->
+        <div id="view-analysis" class="space-y-5">
+          
+          <!-- Race Header Card -->
+          <div id="race-detail-container" class="hidden card overflow-hidden relative border-navy-500 min-h-[140px]">
+            <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1616083049103-6f8976dfbf77?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-20 pointer-events-none"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-navy-800 via-navy-800/90 to-transparent z-0 pointer-events-none"></div>
+            
+            <div class="relative z-10 p-5 flex flex-col justify-center h-full">
+              <span id="race-badge-track" class="bg-blue-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded self-start uppercase tracking-wider mb-2 shadow">TRACK</span>
+              <h2 id="race-title" class="text-xl font-bold text-white tracking-wide">Select a race</h2>
+              <p id="race-subtitle" class="text-[13px] text-slate-300 mt-1 font-medium">To view prediction analysis</p>
+              
+              <!-- Weather Pills -->
+              <div id="weather-pill" class="mt-4 flex items-center space-x-4 text-[11px] font-medium text-slate-300">
+                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-sun text-amber-400"></i><span id="w-temp">--°C</span></span>
+                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-droplet text-blue-400"></i><span id="w-rain">--mm</span></span>
+                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-wind text-accent-teal"></i><span id="w-wind">--km/h</span></span>
+                <span id="w-cond-badge" class="px-2 py-0.5 rounded border border-navy-500 bg-navy-600/80 text-slate-200"><span id="w-cond">--</span></span>
+              </div>
+
+              <!-- Scratched Banner -->
+              <div id="scratched-banner" class="hidden mt-3 flex items-center space-x-2 text-xs">
+                <span class="px-2.5 py-1 rounded bg-rose-950/90 text-rose-300 border border-rose-800/80 flex items-center space-x-2 shadow">
+                  <i class="fa-solid fa-ban text-[11px] text-rose-400"></i>
+                  <span class="uppercase tracking-wider text-[10px] font-black text-rose-400">Scratched:</span>
+                  <span id="scratched-list-text" class="font-semibold text-slate-200"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Top 4 Predicted Podium -->
+          <div id="top4-podium-card" class="hidden card p-5 border-navy-500">
+            <div class="flex items-center justify-between border-b border-navy-500 pb-3 mb-4">
+              <h3 class="text-[11px] font-bold text-slate-200 tracking-wider uppercase flex items-center space-x-2">
+                <i class="fa-solid fa-trophy text-amber-400"></i>
+                <span>Model Top 4 Predicted Finish (Order of Placings)</span>
+              </h3>
+              <div class="text-[10px] text-slate-400 flex items-center space-x-1"><i class="fa-solid fa-chart-line"></i><span>Projected First 4 Finish</span></div>
+            </div>
+            <div id="top4-podium-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+          
+          <!-- Value Edge Table -->
+          <div class="card overflow-hidden border-navy-500 hidden" id="analysis-table-card">
+            <div class="flex items-center justify-between p-4 border-b border-navy-500 bg-[#16212D]">
+              <h3 class="text-[11px] font-bold text-slate-200 tracking-wider flex items-center space-x-2">
+                <i class="fa-solid fa-chart-simple text-accent-teal"></i>
+                <span>Softmax Probability & Value Edge Ratings</span>
+              </h3>
+              <span class="text-[10px] text-slate-400">Sportsbet fixed odds highlighted; green indicates +EV edge</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left whitespace-nowrap">
+                <thead class="bg-navy-700">
+                  <tr>
+                    <th class="w-12 text-center">#</th>
+                    <th>Greyhound</th>
+                    <th>Trainer</th>
+                    <th class="text-right text-pink-400">Hype %</th>
+<th class="text-right">Model Win%</th>
+                    <th class="text-right">Fair Odds</th>
+                    <th class="text-right text-amber-400">Sportsbet Win</th>
+                    <th class="text-right text-amber-400">SB Place</th>
+                    <th class="text-right text-purple-400">TheDogs SP</th>
+                    <th class="text-right text-accent-green">SB Edge</th>
+                  </tr>
+                </thead>
+                <tbody id="runners-tbody" class="bg-navy-600 divide-y divide-navy-500">
+                  <tr><td colspan="9" class="text-center text-slate-500 py-6 text-xs italic">Select a race from the sidebar to view predictive analytics</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+<!-- TAB 2: MULTI OPTIMIZER -->
+      <div id="view-multis" class="hidden space-y-4">
+        <!-- Multi Control Bar -->
+        <div class="card p-4 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-4">
+            <div id="multi-context-pill" class="flex items-center space-x-2 bg-blue-950/70 border border-blue-700 px-3 py-1.5 rounded-lg text-xs">
+              <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+              <span id="multi-context-text" class="font-semibold text-blue-200">Mode: Cross-Meeting Multis</span>
+            </div>
+            <div id="srm-toggle-container" class="hidden">
+              <button onclick="toggleSrmMode()" id="btn-toggle-srm" class="px-3 py-1.5 bg-navy-600 hover:bg-gray-700 text-slate-300 rounded text-xs font-semibold flex items-center space-x-1 border border-navy-500">
+                <i class="fa-solid fa-layer-group"></i>
+                <span id="btn-toggle-srm-text">Switch to Cross-Meeting</span>
+              </button>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Odds Platform</label>
+              <select id="multi-platform-select" onchange="fetchMultis()" class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
+                <option value="sportsbet" selected>Sportsbet Fixed (Default)</option>
+                <option value="best">Best Available Price</option>
+                <option value="sp">TheDogs SP</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Min Total Odds</label>
+              <select id="multi-odds-select" onchange="fetchMultis()" class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
+                <option value="1.25">$1.25+</option>
+                <option value="3.0">$3.00+</option>
+                <option value="5.0" selected>$5.00+</option>
+                <option value="10.0">$10.00+</option>
+                <option value="25.0">$25.00+</option>
+                <option value="50.0">$50.00+</option>
+              </select>
+            </div>
+            <div id="srm-type-filter-container" class="hidden">
+              <label class="block text-xs text-slate-400 mb-1">SRM Type Filter</label>
+              <select id="srm-type-select" onchange="renderFilteredMultis()" class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
+                <option value="all" selected>All Combinations</option>
+                <option value="4-Leg Top 4 SRM">4-Leg Top 4 Boxed</option>
+                <option value="4-Leg Win+Top 4 Mix SRM">4-Leg Win + Top 4 Mix</option>
+                <option value="4-Leg Top 2/Top 4 Mix SRM">4-Leg Top 2 / Top 4 Mix</option>
+                <option value="3-Leg Trifecta SRM">3-Leg Trifecta</option>
+                <option value="2-Leg Exacta SRM">2-Leg Exacta</option>
+                <option value="2-Leg Top 4 SRM">2-Leg Top 4 (Safe Pair)</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="fetchMultis()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold flex items-center space-x-2 transition shadow">
+            <i class="fa-solid fa-arrows-rotate"></i>
+            <span>Refresh Multis</span>
+          </button>
+        </div>
+
+        <!-- Multi Combinations Output Container -->
+        <div id="multis-container" class="space-y-4">
+          <div class="p-12 text-center card text-slate-500">
+            <i class="fa-solid fa-calculator text-4xl mb-3 text-gray-600"></i>
+            <p>Click "Refresh Multis" to discover +EV combinations.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: HISTORICAL BACKTEST & STRATEGY LAB -->
+      <div id="view-backtest" class="hidden space-y-4">
+        <!-- Backtest Controls Card -->
+        <div class="card p-5">
+          <div class="flex items-center justify-between pb-3 border-b border-navy-500 mb-4">
+            <div class="flex items-center space-x-2">
+              <i class="fa-solid fa-flask text-cyan-400"></i>
+              <h3 class="text-sm font-bold uppercase tracking-wider text-white">Historical Backtest Simulator & Calibration</h3>
+            </div>
+            <span class="text-xs text-slate-400 font-mono">261 Verified Completed Races in DB</span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+            <div>
+              <label class="block text-slate-400 mb-1">Min Edge (+EV)</label>
+              <select id="bt-min-edge" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+                <option value="0.02">+2% Edge</option>
+                <option value="0.03" selected>+3% Edge</option>
+                <option value="0.05">+5% Edge</option>
+                <option value="0.08">+8% Edge</option>
+                <option value="0.10">+10% Edge</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Min Odds</label>
+              <input type="number" id="bt-min-odds" value="1.50" step="0.1" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Max Odds</label>
+              <input type="number" id="bt-max-odds" value="20.0" step="1.0" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Staking Plan</label>
+              <select id="bt-staking" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+                <option value="flat" selected>Flat ($10)</option>
+                <option value="kelly">0.25x Kelly</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1">Odds Feed</label>
+              <select id="bt-odds-source" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+                <option value="best" selected>Best Market Price</option>
+                <option value="sportsbet">Sportsbet Fixed</option>
+                <option value="sp">TheDogs SP</option>
+              </select>
+            </div>
+            <div class="flex items-end space-x-1.5">
+              <button onclick="runBacktest()" id="btn-run-backtest" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1.5 px-3 rounded shadow transition flex items-center justify-center space-x-1">
+                <i class="fa-solid fa-play text-[10px]"></i>
+                <span>Simulate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backtest Metrics Dashboard Cards -->
+        <div id="bt-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          <div class="card p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Bets</span>
+            <div id="bt-stat-bets" class="text-xl font-bold font-mono text-white mt-0.5">-</div>
+            <span id="bt-stat-races" class="text-[10px] text-slate-500">Across - races</span>
+          </div>
+          <div class="card p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Strike Rate</span>
+            <div id="bt-stat-sr" class="text-xl font-bold font-mono text-cyan-400 mt-0.5">-%</div>
+            <span id="bt-stat-wins" class="text-[10px] text-slate-500">- wins / - losses</span>
+          </div>
+          <div class="card p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Net Profit</span>
+            <div id="bt-stat-pnl" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">$-</div>
+            <span id="bt-stat-staked" class="text-[10px] text-slate-500">Staked: $-</span>
+          </div>
+          <div class="card p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">ROI / Yield</span>
+            <div id="bt-stat-roi" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">-%</div>
+            <span class="text-[10px] text-slate-500">Return on Turnover</span>
+          </div>
+          <div class="card p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Max Drawdown</span>
+            <div id="bt-stat-dd" class="text-xl font-bold font-mono text-amber-400 mt-0.5">-%</div>
+            <span id="bt-stat-dd-dollars" class="text-[10px] text-slate-500">Peak drop: $-</span>
+          </div>
+          <div class="card p-3 text-center">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">Brier Score</span>
+            <div id="bt-stat-brier" class="text-xl font-bold font-mono text-blue-400 mt-0.5">-</div>
+            <span class="text-[10px] text-slate-500">Model Calibration</span>
+          </div>
+        </div>
+
+        <!-- Simulated Bets Ledger Table -->
+        <div class="card overflow-hidden">
+          <div class="p-3 card-header flex items-center justify-between">
+            <h4 class="text-xs font-semibold text-white uppercase tracking-wider flex items-center space-x-1.5">
+              <i class="fa-solid fa-list-check text-emerald-400"></i>
+              <span>Simulated Qualifying Bets Ledger (Recent Sample)</span>
+            </h4>
+            <span class="text-[11px] text-slate-400">Historical Ground Truth</span>
+          </div>
+          <div class="overflow-x-auto max-h-72 overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                <tr>
+                  <th class="p-2.5 w-16">Result</th>
+                  <th class="p-2.5">Date & Meeting</th>
+                  <th class="p-2.5 w-10 text-center">Box</th>
+                  <th class="p-2.5">Greyhound</th>
+                  <th class="p-2.5 text-right">Odds</th>
+                  <th class="p-2.5 text-right">Model Win%</th>
+                  <th class="p-2.5 text-right">Edge</th>
+                  <th class="p-2.5 text-right">Stake</th>
+                  <th class="p-2.5 text-right">Profit / Loss</th>
+                  <th class="p-2.5 text-right">Bankroll</th>
+                </tr>
+              </thead>
+              <tbody id="bt-bets-tbody" class="divide-y divide-[#30363d]">
+                <tr>
+                  <td colspan="10" class="p-8 text-center text-slate-500">Click "Simulate" to run backtest against historical races.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: DAILY LEARNING & CONTINUOUS AUDIT -->
+      <div id="view-learning" class="hidden space-y-4">
+        <!-- Control Bar -->
+        <div class="card p-5">
+          <div class="flex flex-wrap items-center justify-between pb-3 border-b border-navy-500 mb-4 gap-3">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-purple-950/80 border border-purple-600 flex items-center justify-center text-purple-400 text-sm shadow">
+                <i class="fa-solid fa-brain"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-white">Daily Learning & Continuous Calibration Engine</h3>
+                <p class="text-[11px] text-slate-400">Audits today's model predictions against official race results, tracks First 4 & SRM hits, and applies machine calibration.</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <div class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
+                <i class="fa-solid fa-calendar-day text-purple-400"></i>
+                <label class="text-slate-400">Date:</label>
+                <input type="date" id="learning-date-input" onchange="runLearningAudit()" class="bg-transparent text-white font-bold focus:outline-none cursor-pointer">
+              </div>
+
+              <!-- Location / Track Filter -->
+              <div class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
+                <i class="fa-solid fa-location-dot text-cyan-400"></i>
+                <label class="text-slate-400">Location:</label>
+                <select id="first4-track-filter" onchange="runLearningAudit()" class="bg-navy-700 text-white font-bold focus:outline-none cursor-pointer rounded px-2 py-0.5 border border-navy-500">
+                  <option value="">All Locations</option>
+                </select>
+              </div>
+
+              <!-- Distance Filter -->
+              <div class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
+                <i class="fa-solid fa-ruler-horizontal text-emerald-400"></i>
+                <label class="text-slate-400">Distance:</label>
+                <select id="first4-dist-filter" onchange="runLearningAudit()" class="bg-navy-700 text-white font-bold focus:outline-none cursor-pointer rounded px-2 py-0.5 border border-navy-500">
+                  <option value="">All Distances</option>
+                </select>
+              </div>
+
+              <button onclick="runLearningAudit()" id="btn-run-learning" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs font-bold flex items-center space-x-2 transition shadow">
+                <i class="fa-solid fa-rotate text-[10px]"></i>
+                <span>Refresh Audit</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Top Metric Cards Grid (Responsive Multi-Tier Performance Grid) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 text-center">
+            <div class="bg-navy-600 p-2.5 rounded border border-navy-500">
+              <span class="block text-slate-400 text-[10px] uppercase font-bold">Races Audited</span>
+              <span id="learn-total-races" class="text-base font-bold text-white font-mono">--</span>
+              <span id="learn-filter-label" class="text-[9px] text-slate-400 block truncate">All Tracks</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-emerald-900/60 bg-emerald-950/20">
+              <span class="block text-emerald-400 text-[10px] uppercase font-bold">Top-1 Win</span>
+              <span id="learn-top1-rate" class="text-base font-bold text-emerald-300 font-mono">--%</span>
+              <span id="learn-top1-count" class="text-[10px] text-slate-400 block">--/--</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-cyan-900/60 bg-cyan-950/20">
+              <span class="block text-cyan-400 text-[10px] uppercase font-bold">Winner in Top 4</span>
+              <span id="learn-top4-rate" class="text-base font-bold text-cyan-300 font-mono">--%</span>
+              <span id="learn-top4-count" class="text-[10px] text-slate-400 block">--/--</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-amber-900/60 bg-amber-950/20">
+              <span class="block text-amber-400 text-[10px] uppercase font-bold">3+ in 4 (SRM)</span>
+              <span id="learn-srm-rate" class="text-base font-bold text-amber-300 font-mono">--%</span>
+              <span id="learn-srm-count" class="text-[10px] text-slate-400 block">--/--</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-yellow-900/60 bg-yellow-950/20">
+              <span class="block text-yellow-400 text-[10px] uppercase font-bold">Tier 1: 4-Dog F4</span>
+              <span id="learn-f4-rate" class="text-base font-bold text-yellow-300 font-mono">--%</span>
+              <span id="learn-f4-count" class="text-[10px] text-slate-400 block">24 combos</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-cyan-700/60 bg-cyan-950/30">
+              <span class="block text-cyan-300 text-[10px] uppercase font-bold">Tier 2: 5-Dog F4</span>
+              <span id="learn-f5-rate" class="text-base font-bold text-cyan-200 font-mono">--%</span>
+              <span id="learn-f5-count" class="text-[10px] text-slate-400 block">120 combos</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-purple-600/70 bg-purple-950/40 ring-1 ring-purple-500/50">
+              <span class="block text-purple-300 text-[10px] uppercase font-bold">Tier 3: 6-Dog F4</span>
+              <span id="learn-f6-rate" class="text-base font-bold text-purple-200 font-mono">--%</span>
+              <span id="learn-f6-count" class="text-[10px] text-purple-300 font-bold block">360 combos (Target)</span>
+            </div>
+            <div class="bg-navy-600 p-2.5 rounded border border-orange-700/60 bg-orange-950/20">
+              <span class="block text-orange-400 text-[10px] uppercase font-bold">Key Standout</span>
+              <span id="learn-standout-rate" class="text-base font-bold text-orange-300 font-mono">--%</span>
+              <span id="learn-standout-count" class="text-[10px] text-slate-400 block">24 combos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Learning & Calibration Insights Card -->
+        <div class="card p-4 border-l-4 border-purple-500 bg-gradient-to-r from-[#161b22] to-[#1e172a]">
+          <div class="flex items-center space-x-2 mb-2">
+            <i class="fa-solid fa-microchip text-purple-400 text-sm"></i>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white">Active Machine Calibrations & Track Biases</h4>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
+              <span class="font-bold text-purple-300 block mb-0.5"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>The Meadows 525m Rail Parity</span>
+              <p class="text-slate-400 text-[11px]">Calibrated temperature 2.50. Box 1 rail supremacy (1.20) & Box 8 wide swoop (1.12); middle box 65m squeeze protection active.</p>
+            </div>
+            <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
+              <span class="font-bold text-purple-300 block mb-0.5"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>The Gardens 400m / 515m / 600m</span>
+              <p class="text-slate-400 text-[11px]">600m chute squeeze penalty applied to Box 1 (0.85 x 0.82) with wide swooper bonus on Boxes 6, 7, 8 (1.12 x 1.08).</p>
+            </div>
+            <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
+              <span class="font-bold text-purple-300 block mb-0.5"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>Q1 Lakeside, Bendigo & Cannington</span>
+              <p class="text-slate-400 text-[11px]">Bendigo 75.0% 6-dog hit rate; Cannington 77.8% 5/6-dog hit rate with exact 2-1-8-7 First 4; Q1 Lakeside 72.7% hit rate.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track & Distance Breakdown Tables -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- Track Performance (2 cols) -->
+          <div class="lg:col-span-2 card overflow-hidden">
+            <div class="p-3.5 card-header flex items-center justify-between">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white">Track Performance Breakdown</h4>
+              <span class="text-[11px] text-slate-400">Ranked by volume of completed races</span>
+            </div>
+            <div class="overflow-x-auto max-h-[380px]">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                  <tr>
+                    <th class="p-2.5">Track Location</th>
+                    <th class="p-2.5 text-center">Races</th>
+                    <th class="p-2.5 text-right font-bold text-emerald-400">Top-1 Win %</th>
+                    <th class="p-2.5 text-right text-amber-400">3+ in 4</th>
+                    <th class="p-2.5 text-right text-yellow-300">4-Dog F4%</th>
+                    <th class="p-2.5 text-right text-cyan-300">5-Dog F4%</th>
+                    <th class="p-2.5 text-right font-bold text-purple-300">6-Dog F4%</th>
+                  </tr>
+                </thead>
+                <tbody id="learning-tracks-tbody" class="divide-y divide-[#30363d]">
+                  <tr><td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Distance Breakdown (1 col) -->
+          <div class="card overflow-hidden">
+            <div class="p-3.5 card-header flex items-center justify-between">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white">Distance Breakdown</h4>
+              <span class="text-[11px] text-slate-400">Race Distance Hit Rates</span>
+            </div>
+            <div class="overflow-x-auto max-h-[380px]">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                  <tr>
+                    <th class="p-2.5">Distance</th>
+                    <th class="p-2.5 text-center">Races</th>
+                    <th class="p-2.5 text-right font-bold text-emerald-400">Top-1%</th>
+                    <th class="p-2.5 text-right text-amber-400">3+ in 4</th>
+                    <th class="p-2.5 text-right text-yellow-300">4-Dog%</th>
+                    <th class="p-2.5 text-right text-cyan-300">5-Dog%</th>
+                    <th class="p-2.5 text-right font-bold text-purple-300">6-Dog%</th>
+                  </tr>
+                </thead>
+                <tbody id="learning-dist-tbody" class="divide-y divide-[#30363d]">
+                  <tr><td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Race-by-Race First 4 Audit Detail Card -->
+        <div class="card overflow-hidden">
+          <div class="p-3.5 card-header flex flex-wrap items-center justify-between gap-2.5">
+            <div class="flex items-center space-x-2">
+              <i class="fa-solid fa-list-check text-purple-400"></i>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white">First 4 Race-by-Race Hit Audit (Predicted vs Actual)</h4>
+            </div>
+            <!-- Ticket Tier Filter Pills -->
+            <div class="flex items-center space-x-1.5 bg-navy-700 border border-navy-500 p-1 rounded-lg text-xs">
+              <span class="text-[10px] font-bold text-slate-400 uppercase px-1.5">View Filter:</span>
+              <button onclick="setAuditTierFilter('all')" id="audit-tier-btn-all" class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-600 text-white transition">All</button>
+              <button onclick="setAuditTierFilter('6dog')" id="audit-tier-btn-6dog" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">6-Dog (Target)</button>
+              <button onclick="setAuditTierFilter('5dog')" id="audit-tier-btn-5dog" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">5-Dog</button>
+              <button onclick="setAuditTierFilter('4dog')" id="audit-tier-btn-4dog" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">4-Dog</button>
+              <button onclick="setAuditTierFilter('standout')" id="audit-tier-btn-standout" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">Standout</button>
+            </div>
+            <div class="flex items-center space-x-3 text-[11px] text-slate-400">
+              <span id="first4-races-count" class="font-mono text-purple-300 font-bold">-- races</span>
+              <span>• Real-time model audit</span>
+            </div>
+          </div>
+          <div class="overflow-x-auto max-h-[520px]">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                <tr>
+                  <th class="p-2.5">Race & Time</th>
+                  <th class="p-2.5 text-center">Dist / Grade</th>
+                  <th class="p-2.5">Predicted Selections</th>
+                  <th class="p-2.5">Actual Official Top 4 (1st - 4th)</th>
+                  <th class="p-2.5 text-center">Overlap</th>
+                  <th class="p-2.5 text-right">Hit Badges</th>
+                </tr>
+              </thead>
+              <tbody id="first4-races-tbody" class="divide-y divide-[#30363d]">
+                <tr><td colspan="6" class="p-6 text-center text-slate-500">Loading First 4 audit...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Greyhound Career Dossier Modal -->
+  <div id="dog-dossier-modal" onclick="if(event.target === this) closeDogDossier()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4 sm:p-6 transition-all duration-200">
+    <div class="bg-navy-700 border border-navy-500 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-navy-500 flex items-center justify-between bg-[#0d1117]">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-600 flex items-center justify-center text-emerald-400 text-lg shadow">
+            <i class="fa-solid fa-paw"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2.5">
+              <h2 id="dossier-dog-name" class="text-base sm:text-lg font-black text-white tracking-wide uppercase">GREYHOUND NAME</h2>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-700">CAREER DOSSIER</span>
+            </div>
+            <div id="dossier-dog-meta" class="text-xs text-slate-400 mt-0.5">Fetching career records...</div>
+          </div>
+        </div>
+        <button onclick="closeDogDossier()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-navy-600 transition text-sm">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div id="dossier-body" class="p-5 overflow-y-auto space-y-5 text-xs text-slate-300">
+        <!-- Content will be injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Client Logic -->
+
+      
+        <!-- View 5: Settings -->
+        <div id="view-settings" class="hidden space-y-6">
+          <div class="card p-6 border-navy-500 max-w-2xl">
+            <div class="flex items-center space-x-3 border-b border-navy-500 pb-4 mb-6">
+              <i class="fa-solid fa-gear text-accent-teal text-xl"></i>
+              <h2 class="text-lg font-bold text-white">Application Settings</h2>
+            </div>
+            
+            <div class="space-y-6">
+              <div>
+                <h3 class="text-sm font-semibold text-slate-200 mb-1">Betting & Bankroll</h3>
+                <p class="text-xs text-slate-400 mb-4">Configure default staking parameters for backtesting and strategy generation.</p>
+                
+                <div class="grid grid-cols-2 gap-6">
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Default Flat Stake ($)</label>
+                    <input type="number" id="settings-stake" value="10" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Initial Bankroll ($)</label>
+                    <input type="number" id="settings-bankroll" value="1000" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Kelly Fraction</label>
+                    <input type="number" step="0.05" id="settings-kelly" value="0.25" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="border-t border-navy-500 pt-6">
+                <button onclick="saveSettings()" class="bg-accent-teal hover:bg-cyan-400 text-navy-900 font-bold py-2 px-6 rounded transition shadow-lg flex items-center space-x-2">
+                  <i class="fa-solid fa-check"></i><span>Save Settings</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+</div>
+    </section>
+  </main>
+
+
+  <script>
+    let currentFilter = 'upcoming';
+    
+// Settings Management
+function updateStakingLabels() {
+  const stake = getSetting('stake', 10);
+  const kelly = getSetting('kelly', 0.25);
+  const sel = document.getElementById('bt-staking');
+  if (sel && sel.options.length >= 2) {
+    sel.options[0].text = 'Flat ($' + Number(stake).toFixed(2).replace(/\.00$/, '') + ')';
+    sel.options[1].text = kelly + 'x Kelly';
+  }
+}
+
+function loadSettings() {
+  const s = localStorage.getItem('gpe_settings');
+  if(s) {
+    const settings = JSON.parse(s);
+    if(settings.stake) document.getElementById('settings-stake').value = settings.stake;
+    if(settings.bankroll) document.getElementById('settings-bankroll').value = settings.bankroll;
+    if(settings.kelly) document.getElementById('settings-kelly').value = settings.kelly;
+  }
+  updateStakingLabels();
+}
+
+function saveSettings() {
+  const settings = {
+    stake: document.getElementById('settings-stake').value || 10,
+    bankroll: document.getElementById('settings-bankroll').value || 1000,
+    kelly: document.getElementById('settings-kelly').value || 0.25
+  };
+  localStorage.setItem('gpe_settings', JSON.stringify(settings));
+  updateStakingLabels();
+  alert('Settings saved successfully!');
+}
+
+function getSetting(key, defValue) {
+  const s = localStorage.getItem('gpe_settings');
+  if(s) {
+    const settings = JSON.parse(s);
+    return settings[key] !== undefined ? settings[key] : defValue;
+  }
+  return defValue;
+}
+
+// Ensure settings load on startup
+document.addEventListener('DOMContentLoaded', loadSettings);
+
+let currentRaceId = null;
+    let rawLoadedRaces = [];
+    let prevThedogsRunning = false;
+    let currentFetchedMultis = [];
+    let currentFetchedIsSrm = false;
+
+    async function updateStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        document.getElementById('stat-meetings').textContent = data.stats.meetings;
+        document.getElementById('stat-races').textContent = data.stats.races;
+        document.getElementById('stat-runners').textContent = data.stats.runners;
+        document.getElementById('stat-pp').textContent = data.stats.past_performances;
+        document.getElementById('stat-weather').textContent = data.stats.weather_records;
+
+        // Check running tasks
+        const t = data.tasks;
+        const active = [];
+        if (t.thedogs.running) active.push(t.thedogs.message);
+        if (t.fasttrack.running) active.push(t.fasttrack.message);
+        if (t.weather.running) active.push(t.weather.message);
+
+        const indicator = document.getElementById('task-text');
+        if (active.length > 0) {
+          indicator.textContent = active.join(' | ');
+          indicator.parentElement.classList.add('text-amber-400');
+        } else {
+          indicator.textContent = 'All scrapers idle';
+          indicator.parentElement.classList.remove('text-amber-400');
+        }
+
+        // Live Scraping Progress Banner in left sidebar
+        const banner = document.getElementById('scraping-progress-banner');
+        const bannerText = document.getElementById('scraping-progress-text');
+        if (banner && bannerText) {
+          if (t.thedogs.running) {
+            banner.classList.remove('hidden');
+            bannerText.textContent = t.thedogs.message || 'Scraping race cards in background...';
+          } else {
+            banner.classList.add('hidden');
+          }
+        }
+
+        // If scraper was running and just finished, reload race cards immediately
+        if (prevThedogsRunning && !t.thedogs.running) {
+          loadRaces(currentFilter);
+        }
+        prevThedogsRunning = !!t.thedogs.running;
+      } catch (e) {
+        console.error('Status fetch failed', e);
+      }
+    }
+
+    async function triggerAction(action) {
+      try {
+        if (action === 'thedogs') {
+          const banner = document.getElementById('scraping-progress-banner');
+          const bannerText = document.getElementById('scraping-progress-text');
+          if (banner && bannerText) {
+            banner.classList.remove('hidden');
+            bannerText.textContent = 'Initiating race card fetch for Mandurah & upcoming tracks...';
+          }
+        }
+        const res = await fetch(`/api/actions/fetch-${action}`, { method: 'POST' });
+        const data = await res.json();
+        updateStatus();
+        setTimeout(updateStatus, 1500);
+        setTimeout(updateStatus, 3500);
+        setTimeout(() => loadRaces(currentFilter), 4000);
+      } catch (e) {
+        alert('Action failed: ' + e);
+      }
+    }
+
+    let selectedTimezone = 'AWST'; // User is in Western Australia (AWST = UTC+8, AEST = UTC+10)
+
+    function changeTimezone(tz) {
+      selectedTimezone = tz;
+      loadRaces(currentFilter);
+      if (currentRaceId) {
+        selectRace(currentRaceId);
+      }
+    }
+
+    // Convert eastern states daylight saving race time (AEDT, UTC+11) to local AWST (UTC+8, -3 hours)
+    function formatRaceTime(timeStr) {
+      if (!timeStr || timeStr === 'TBD') return 'TBD';
+      if (selectedTimezone === 'AEDT' || selectedTimezone === 'AEST') return `${timeStr} AEDT`;
+
+      // AWST is 3 hours behind AEDT (Sydney/Melbourne/Hobart during Daylight Saving Time: UTC+11 vs UTC+8)
+      const parts = timeStr.split(':');
+      if (parts.length === 2) {
+        let h = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        if (!isNaN(h) && !isNaN(m)) {
+          h = (h - 3 + 24) % 24;
+          const hStr = h < 10 ? '0' + h : '' + h;
+          const mStr = m < 10 ? '0' + m : '' + m;
+          return `${hStr}:${mStr} AWST`;
+        }
+      }
+      return timeStr;
+    }
+
+    function renderRunnerRow(p, idx, arr) {
+      const activeEdge = p.sportsbet_edge !== null && p.sportsbet_edge !== undefined ? p.sportsbet_edge : p.edge;
+      const edgeClass = activeEdge && activeEdge > 0.02 ? 'text-accent-teal font-bold bg-emerald-950/40' : (activeEdge && activeEdge < -0.05 ? 'text-rose-400' : 'text-slate-400');
+      const edgeFormatted = activeEdge !== null && activeEdge !== undefined ? `${(activeEdge * 100).toFixed(1)}%` : '-';
+      const boxBadgeClass = `badge-box-${p.box || 1}`;
+      
+  const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
+  let finishBadge = '';
+  if (p.finish_position !== null && p.finish_position !== undefined) {
+    const pos = p.finish_position;
+    let rankStr = pos + (['st','nd','rd'][((pos+90)%100-10)%10-1]||'th');
+    let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' : 
+                  pos === 2 ? 'bg-slate-300 text-black shadow' : 
+                  pos === 3 ? 'bg-amber-700 text-white shadow' : 
+                  'bg-navy-700 text-slate-400 border border-navy-500';
+    finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
+  }
+
+
+      const sbWinStr = p.sportsbet_odds ? `$${Number(p.sportsbet_odds).toFixed(2)}` : '-';
+      const sbPlaceStr = p.sportsbet_place_odds ? `$${Number(p.sportsbet_place_odds).toFixed(2)}` : '-';
+      const spStr = p.market_odds ? `$${Number(p.market_odds).toFixed(2)}` : '-';
+
+      let highlightPlace = false;
+      if (arr && arr.length > 0 && p.sportsbet_place_odds && p.sportsbet_place_odds > 2.20) {
+          const activeRunners = arr.length;
+          const pays3rd = activeRunners >= 8;
+          const rank = idx + 1;
+          if (pays3rd && rank <= 3) {
+              highlightPlace = true;
+          } else if (!pays3rd && rank <= 2) {
+              highlightPlace = true;
+          }
+      }
+      
+      const placeClass = highlightPlace 
+          ? 'bg-emerald-950/60 text-emerald-300 font-extrabold border border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.3)] px-2 py-0.5 rounded'
+          : 'text-[#FFD700]/80';
+
+      return `
+        <tr class="hover:bg-[#1f242c] transition">
+          <td class="p-3 text-center">
+            <span class="inline-block w-12 h-12 flex items-center justify-center font-extrabold text-2xl rounded-lg shadow-md ${boxBadgeClass}">${p.box || '?'}</span>
+          </td>
+          <td class="p-3 font-semibold text-white">
+            <div class="flex items-center space-x-1.5 flex-wrap">
+              <button onclick="openDogDossier(this.dataset.id, this.dataset.name)" data-id="${p.dog_id || 0}" data-name="${safeDogName}" class="text-left font-semibold text-white hover:text-accent-teal underline decoration-dotted decoration-gray-500 hover:decoration-emerald-400 transition cursor-pointer flex items-center space-x-1.5 group">
+                <span>${p.dog_name}</span>
+${finishBadge}
+                <i class="fa-solid fa-chart-line text-[10px] text-slate-500 group-hover:text-accent-teal"></i>
+              </button>
+              ${p.expert_tip_rank ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50" title="TheDogs Expert Tip #${p.expert_tip_rank}">Tip #${p.expert_tip_rank}</span>` : ''}
+              ${p.tie_breaker_applied ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-600/50" title="${p.tie_breaker_note || 'Deadlock broken via Expert Consensus'}"><i class="fa-solid fa-scale-balanced mr-0.5"></i>Tie-Break</span>` : ''}
+            </div>
+          </td>
+          <td class="p-3 text-slate-400 truncate max-w-[130px]">${p.trainer || '-'}</td>
+          <td class="p-3 text-right font-mono font-bold text-pink-400">${p.hype_score ? p.hype_score + '%' : '-'}</td>
+<td class="p-3 text-right font-mono font-bold text-white">${(p.model_win_prob * 100).toFixed(1)}%</td>
+          <td class="p-3 text-right font-mono text-cyan-400 font-semibold">$${p.fair_win_odds.toFixed(2)}</td>
+          <td class="p-3 text-right font-mono font-bold text-yellow-300 ${p.sportsbet_odds ? 'bg-yellow-950/30 px-2 rounded border border-yellow-700/40' : ''}">${sbWinStr}</td>
+          <td class="p-3 text-right font-mono text-[11px]"><span class="${placeClass}">${sbPlaceStr}</span></td>
+          <td class="p-3 text-right font-mono text-slate-400">${spStr}</td>
+          <td class="p-3 text-right font-mono ${edgeClass}">${edgeFormatted}</td>
+        </tr>
+      `;
+    }
+
+    async function openDogDossier(dogId, dogName) {
+      const modal = document.getElementById('dog-dossier-modal');
+      const nameEl = document.getElementById('dossier-dog-name');
+      const metaEl = document.getElementById('dossier-dog-meta');
+      const bodyEl = document.getElementById('dossier-body');
+      
+      nameEl.textContent = (dogName || 'Greyhound').toUpperCase();
+      metaEl.textContent = 'Analyzing historical form, sectionals and track personal bests...';
+      bodyEl.innerHTML = `
+        <div class="py-16 text-center text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-3xl mb-3 text-accent-teal"></i>
+          <p class="font-medium text-white text-sm">Retrieving career dossier & sectional history...</p>
+          <p class="text-xs text-slate-500 mt-1">Cross-referencing track personal bests, box affinities and full race logs</p>
+        </div>
+      `;
+      modal.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/api/dogs/${dogId}/dossier`);
+        if (!res.ok) throw new Error('Dossier unavailable');
+        const data = await res.json();
+        renderDossierContent(data, dogName);
+      } catch (err) {
+        bodyEl.innerHTML = `
+          <div class="py-12 text-center text-rose-400">
+            <i class="fa-solid fa-circle-exclamation text-3xl mb-2"></i>
+            <p class="font-semibold text-white">Dossier temporarily unavailable</p>
+            <p class="text-xs text-slate-400 mt-1">Could not retrieve complete historical race records for this runner.</p>
+          </div>
+        `;
+      }
+    }
+
+    function closeDogDossier() {
+      const modal = document.getElementById('dog-dossier-modal');
+      modal.classList.add('hidden');
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDogDossier();
+    });
+
+    function renderDossierContent(d, fallbackName) {
+      const metaEl = document.getElementById('dossier-dog-meta');
+      const bodyEl = document.getElementById('dossier-body');
+      const starts = d.total_starts || 0;
+      const wins = d.total_wins || 0;
+      const seconds = d.total_seconds || 0;
+      const thirds = d.total_thirds || 0;
+      const winRate = starts > 0 ? ((wins / starts) * 100).toFixed(1) : '0.0';
+      const plcRate = starts > 0 ? (((wins + seconds + thirds) / starts) * 100).toFixed(1) : '0.0';
+
+      metaEl.innerHTML = `
+        <span class="text-[#C0C0C0]">Starts: <strong class="text-white">${starts}</strong></span> · 
+        <span class="text-accent-teal">Wins: <strong>${wins}</strong> (${winRate}%)</span> · 
+        <span class="text-amber-300">Places: <strong>${wins + seconds + thirds}</strong> (${plcRate}%)</span>
+        ${d.prizemoney ? ` · <span class="text-slate-400">Prize: $${Number(d.prizemoney).toLocaleString()}</span>` : ''}
+      `;
+
+      // 1. Box 1-8 Stats Grid
+      let boxCardsHtml = '';
+      const boxStats = d.box_stats || {};
+      for (let b = 1; b <= 8; b++) {
+        const bs = boxStats[b] || boxStats[String(b)] || { starts: 0, wins: 0, places: 0, win_pct: 0 };
+        const bStarts = bs.starts || 0;
+        const bWins = bs.wins || 0;
+        const bWinPct = bs.win_pct !== undefined ? bs.win_pct : (bStarts > 0 ? Math.round((bWins / bStarts) * 100) : 0);
+        const isHotBox = bWinPct >= 20 && bStarts >= 2;
+        boxCardsHtml += `
+          <div class="bg-[#1c2128] border ${isHotBox ? 'border-emerald-500/80 bg-emerald-950/30' : 'border-navy-500'} p-2 rounded-lg flex flex-col items-center justify-between text-center shadow">
+            <span class="inline-flex items-center justify-center w-12 h-12 font-bold text-xs rounded-md badge-box-${b} mb-1 shadow">${b}</span>
+            <div class="text-[11px] font-mono text-[#C0C0C0]">${bStarts} st / <strong class="${bWins > 0 ? 'text-white' : 'text-slate-500'}">${bWins}w</strong></div>
+            <div class="text-[10px] font-bold ${isHotBox ? 'text-accent-teal' : (bWinPct > 0 ? 'text-[#C0C0C0]' : 'text-gray-600')} mt-0.5">${bWinPct}%</div>
+          </div>
+        `;
+      }
+
+      // 2. Track & Distance Personal Bests
+      let pbsHtml = '';
+      if (d.personal_bests && d.personal_bests.length > 0) {
+        pbsHtml = `
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            ${d.personal_bests.map(pb => `
+              <div class="bg-[#1c2128] border border-navy-500 p-2.5 rounded-lg shadow">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-white text-xs">${pb.track}</span>
+                  <span class="text-[10px] text-slate-400 font-mono">${pb.distance}m</span>
+                </div>
+                <div class="text-cyan-400 font-mono font-bold text-sm my-1 flex items-center space-x-1.5">
+                  <i class="fa-solid fa-stopwatch text-xs text-cyan-500"></i>
+                  <span>${pb.best_time ? Number(pb.best_time).toFixed(2) + 's' : '-'}</span>
+                </div>
+                <div class="text-[10px] text-slate-500 flex justify-between">
+                  <span>${pb.date || ''}</span>
+                  <span class="${pb.placing === '1st' ? 'text-amber-400 font-bold' : ''}">${pb.placing || ''}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        pbsHtml = `<div class="p-3 text-center text-slate-500 bg-[#1c2128] rounded-lg border border-navy-500">No recorded track personal bests.</div>`;
+      }
+
+      // 3. Career Race History Table
+      let runsHtml = '';
+      if (d.career_runs && d.career_runs.length > 0) {
+        runsHtml = `
+          <div class="overflow-x-auto max-h-72 overflow-y-auto border border-navy-500 rounded-lg">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="sticky top-0 bg-navy-600 text-[#C0C0C0] border-b border-navy-500 z-10 shadow">
+                <tr>
+                  <th class="p-2 w-14">Plc</th>
+                  <th class="p-2 w-10 text-center">Box</th>
+                  <th class="p-2">Date</th>
+                  <th class="p-2">Track & Dist</th>
+                  <th class="p-2 text-right">Split 1</th>
+                  <th class="p-2 text-right">Time</th>
+                  <th class="p-2 text-right">Win Time</th>
+                  <th class="p-2 text-right">Margin</th>
+                  <th class="p-2 text-right">SP Odds</th>
+                  <th class="p-2">Wgt</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#30363d]">
+                ${d.career_runs.map(r => {
+                  const plc = String(r.finish_pos || '');
+                  let plcBadge = 'bg-gray-800 text-[#C0C0C0]';
+                  if (plc.includes('1st') || plc === '1') plcBadge = 'bg-amber-500 text-black font-bold';
+                  else if (plc.includes('2nd') || plc === '2') plcBadge = 'bg-slate-300 text-black font-bold';
+                  else if (plc.includes('3rd') || plc === '3') plcBadge = 'bg-amber-700 text-white font-bold';
+                  
+                  const boxBadge = r.box ? `badge-box-${r.box}` : 'bg-gray-700 text-white';
+                  const marginStr = r.margin !== null && r.margin !== undefined ? (Number(r.margin) === 0 ? 'Won' : `${Number(r.margin).toFixed(2)}L`) : '-';
+                  const spStr = r.sp_odds ? `$${Number(r.sp_odds).toFixed(2)}` : '-';
+
+                  return `
+                    <tr class="hover:bg-[#1f242c] transition">
+                      <td class="p-2">
+                        <span class="inline-block px-1.5 py-0.5 rounded text-[10px] ${plcBadge}">${plc || '-'}</span>
+                      </td>
+                      <td class="p-2 text-center">
+                        <span class="inline-flex items-center justify-center w-10 h-10 text-center font-bold text-[10px] rounded ${boxBadge}">${r.box || '-'}</span>
+                      </td>
+                      <td class="p-2 text-slate-400 font-mono text-[11px]">${r.run_date || '-'}</td>
+                      <td class="p-2 font-semibold text-white">${r.track_code || ''} ${r.distance ? r.distance + 'm' : ''}</td>
+                      <td class="p-2 text-right font-mono ${r.split_1 ? 'text-amber-400 font-semibold' : 'text-slate-500'}">${r.split_1 ? Number(r.split_1).toFixed(2) + 's' : '-'}</td>
+                      <td class="p-2 text-right font-mono font-bold text-white">${r.race_time ? Number(r.race_time).toFixed(2) + 's' : '-'}</td>
+                      <td class="p-2 text-right font-mono text-slate-400">${r.winner_time ? Number(r.winner_time).toFixed(2) + 's' : '-'}</td>
+                      <td class="p-2 text-right font-mono text-[#C0C0C0]">${marginStr}</td>
+                      <td class="p-2 text-right font-mono text-cyan-400 font-semibold">${spStr}</td>
+                      <td class="p-2 text-slate-400 text-[11px]">${r.weight ? Number(r.weight).toFixed(1) + 'kg' : '-'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } else {
+        runsHtml = `<div class="p-3 text-center text-slate-500 bg-[#1c2128] rounded-lg border border-navy-500">No individual race logs recorded.</div>`;
+      }
+
+      bodyEl.innerHTML = `
+        <!-- Section 1: Box 1-8 Strike Rate Matrix -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center space-x-1.5">
+              <i class="fa-solid fa-boxes-stacked text-accent-teal"></i>
+              <span>Box Performance Matrix (Boxes 1 - 8)</span>
+            </h4>
+            <span class="text-[10px] text-slate-500">Starts / Wins / Win %</span>
+          </div>
+          <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
+            ${boxCardsHtml}
+          </div>
+        </div>
+
+        <!-- Section 2: Personal Bests -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-2 flex items-center space-x-1.5">
+            <i class="fa-solid fa-bolt text-amber-400"></i>
+            <span>Track & Distance Personal Bests</span>
+          </h4>
+          ${pbsHtml}
+        </div>
+
+        <!-- Section 3: Career Race Log -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white flex items-center space-x-1.5">
+              <i class="fa-solid fa-list-ol text-blue-400"></i>
+              <span>Career Race History & Sectional Splits (${d.career_runs ? d.career_runs.length : 0} starts)</span>
+            </h4>
+            <span class="text-[10px] text-slate-500">Most recent starts first</span>
+          </div>
+          ${runsHtml}
+        </div>
+      `;
+    }
+
+    function populateTrackDropdown(races) {
+      const select = document.getElementById('track-select-filter');
+      if (!select) return;
+      const currentSelected = select.value;
+      
+      const counts = {};
+      races.forEach(r => {
+        if (r.track) {
+          counts[r.track] = (counts[r.track] || 0) + 1;
+        }
+      });
+
+      const sortedTracks = Object.keys(counts).sort((a, b) => a.localeCompare(b));
+      let html = `<option value="">All Tracks (${races.length})</option>`;
+      sortedTracks.forEach(track => {
+        html += `<option value="${track}">${track} (${counts[track]})</option>`;
+      });
+      select.innerHTML = html;
+
+      if (counts[currentSelected]) {
+        select.value = currentSelected;
+      }
+    }
+
+    function filterRaces() {
+      const query = (document.getElementById('track-search-input')?.value || '').trim().toLowerCase();
+      const selectedTrack = document.getElementById('track-select-filter')?.value || '';
+      const container = document.getElementById('race-list');
+      if (!container) return;
+
+      let filtered = rawLoadedRaces;
+      if (selectedTrack) {
+        filtered = filtered.filter(r => r.track === selectedTrack);
+      }
+      if (query) {
+        filtered = filtered.filter(r => 
+          (r.track && r.track.toLowerCase().includes(query)) ||
+          (r.race_name && r.race_name.toLowerCase().includes(query)) ||
+          (`r${r.race_number}`.toLowerCase().includes(query))
+        );
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center text-slate-500">No matching races found.${selectedTrack || query ? ' Try clearing track filter or search.' : ' Click "Fetch Race Cards" above.'}</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(r => {
+        const displayTime = r.start_time !== 'TBD' ? formatRaceTime(r.start_time) : r.status;
+        const countdownBadge = r.countdown && r.status === 'Upcoming' ? `
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${
+            r.countdown === 'Jumping Now' ? 'bg-red-900/80 text-red-200 border border-red-700 animate-pulse' :
+            r.countdown === 'In Run' ? 'bg-amber-900/80 text-amber-200 border border-amber-700' :
+            'bg-accent-teal/20/60 text-emerald-300 border border-emerald-700'
+          }">
+            ${r.countdown}
+          </span>
+        ` : '';
+
+        return `
+          <div onclick="selectRace(${r.id})" class="p-3 hover:bg-navy-600 cursor-pointer transition flex items-center justify-between ${currentRaceId === r.id ? 'bg-navy-600 border-l-4 border-emerald-500' : ''}">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="font-bold text-white">${r.track}</span>
+                <span class="text-xs px-1.5 py-0.5 rounded bg-gray-800 text-[#C0C0C0] font-mono">R${r.race_number}</span>
+              </div>
+          <p class="text-[11px] text-slate-400 mt-1 flex items-center space-x-1.5 flex-wrap">
+            <span class="truncate max-w-[150px]">${r.race_name || ''}</span>
+            <span>&bull;</span>
+            <span>${r.distance ? r.distance + 'm' : ''}</span>
+            ${r.weather_temp ? `<span>&bull;</span><span class="flex items-center text-amber-500/90 font-medium whitespace-nowrap"><i class="fa-solid fa-cloud-sun mr-1"></i>${Math.round(r.weather_temp)}&deg;C</span>` : ''}
+          </p>
+            </div>
+            <div class="text-right flex flex-col items-end">
+              <div class="flex items-center space-x-1.5">
+                <span class="text-xs font-semibold ${r.status === 'Upcoming' ? 'text-accent-teal' : 'text-slate-500'} font-mono">${displayTime}</span>
+                ${countdownBadge}
+              </div>
+              <div class="flex flex-col items-end mt-1">
+                <span class="text-[10px] text-slate-500">${r.runners_count} dogs</span>
+                ${r.runners_count <= 7 ? '<span class="mt-0.5 px-1 py-[1px] rounded text-[8px] font-bold bg-rose-950/80 text-rose-300 border border-rose-800/50 leading-none">No 3rd Div</span>' : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (!currentRaceId && filtered.length > 0) {
+        selectRace(filtered[0].id);
+      }
+    }
+
+    async function loadRaces(filter = 'upcoming') {
+      currentFilter = filter;
+      document.querySelectorAll('#tab-all, #tab-upcoming, #tab-completed').forEach(b => {
+        b.className = 'px-2 py-1 rounded text-slate-400 hover:text-white';
+      });
+      const activeTabBtn = document.getElementById('tab-' + filter);
+      if (activeTabBtn) activeTabBtn.className = 'px-2 py-1 rounded bg-navy-600 text-white font-semibold';
+
+      const container = document.getElementById('race-list');
+      container.innerHTML = '<div class="p-4 text-center text-slate-500">Loading races...</div>';
+
+      try {
+        const res = await fetch(`/api/races?filter_status=${filter}`);
+        rawLoadedRaces = await res.json();
+
+        populateTrackDropdown(rawLoadedRaces);
+        filterRaces();
+      } catch (e) {
+        container.innerHTML = '<div class="p-4 text-center text-red-400">Failed loading races.</div>';
+      }
+    }
+
+    async function selectRace(raceId) {
+      currentRaceId = raceId;
+      filterRaces();
+
+      try {
+        const res = await fetch(`/api/races/${raceId}`);
+        const data = await res.json();
+
+        // Header Update
+        selectedRaceTitle = `${data.race.track} R${data.race.race_number}`;
+        const formattedJump = formatRaceTime(data.race.start_time);
+        document.getElementById('race-badge-track').textContent = data.race.track.toUpperCase();
+        document.getElementById('race-title').textContent = `${data.race.track} Race ${data.race.race_number} (${data.race.race_name || ''})`;
+        const tipsText = data.race.expert_tips && data.race.expert_tips.length ? ` · Expert Tips: [${data.race.expert_tips.join(', ')}]` : '';
+        document.getElementById('race-subtitle').textContent = `${data.race.distance ? data.race.distance + 'm' : ''} · ${data.race.grade || ''} · Jump Time: ${formattedJump}${tipsText}`;
+
+        // Weather Pill
+        const wPill = document.getElementById('weather-pill');
+        if (data.weather) {
+          wPill.classList.remove('hidden');
+          document.getElementById('w-temp').textContent = `${data.weather.temperature ?? '--'}°C`;
+          document.getElementById('w-rain').textContent = `${data.weather.precipitation ?? 0}mm`;
+          document.getElementById('w-wind').textContent = `${data.weather.wind_speed ?? '--'}km/h`;
+          const cond = data.weather.condition_desc || 'Fair';
+          const condEl = document.getElementById('w-cond');
+          const badgeEl = document.getElementById('w-cond-badge');
+          if (condEl) condEl.textContent = cond;
+          if (badgeEl) {
+            const isWet = (data.weather.precipitation >= 0.2) || /rain|drizzle|shower|thunder/i.test(cond);
+            if (isWet) {
+              badgeEl.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-blue-950 text-blue-300 border border-blue-700 animate-pulse';
+            } else {
+              badgeEl.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-navy-700 text-[#C0C0C0] border border-navy-500';
+            }
+          }
+        } else {
+          wPill.classList.add('hidden');
+        }
+
+        // Scratched Banner
+        const scratchBanner = document.getElementById('scratched-banner');
+        const scratchText = document.getElementById('scratched-list-text');
+        if (data.scratched && data.scratched.length > 0) {
+          scratchBanner.classList.remove('hidden');
+          scratchText.textContent = data.scratched.map(s => `#${s.box || '?'} ${s.name}`).join(' · ');
+        } else {
+          scratchBanner.classList.add('hidden');
+        }
+
+        // Render Top 4 Predicted Finish Podium
+        const top4Card = document.getElementById('top4-podium-card');
+        const top4Grid = document.getElementById('top4-podium-grid');
+        if (data.predictions && data.predictions.length >= 2) {
+          top4Card.classList.remove('hidden');
+          const placeLabels = [
+            { pos: '1st', label: 'WINNER', badge: 'bg-amber-500 text-black', border: 'border-amber-500/60' },
+            { pos: '2nd', label: 'RUNNER UP', badge: 'bg-slate-300 text-black', border: 'border-slate-400/50' },
+            { pos: '3rd', label: '3RD PLACE', badge: 'bg-amber-700 text-white', border: 'border-amber-700/50' },
+            { pos: '4th', label: '4TH PLACE', badge: 'bg-blue-900 text-blue-200', border: 'border-blue-700/50' }
+          ];
+
+          top4Grid.innerHTML = data.predictions.slice(0, 4).map((p, idx) => {
+            const meta = placeLabels[idx] || { pos: `${idx+1}th`, label: 'TOP 4', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
+            const boxBadgeClass = `badge-box-${p.box || 1}`;
+            
+  const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
+  let finishBadge = '';
+  if (p.finish_position !== null && p.finish_position !== undefined) {
+    const pos = p.finish_position;
+    let rankStr = pos + (['st','nd','rd'][((pos+90)%100-10)%10-1]||'th');
+    let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' : 
+                  pos === 2 ? 'bg-slate-300 text-black shadow' : 
+                  pos === 3 ? 'bg-amber-700 text-white shadow' : 
+                  'bg-navy-700 text-slate-400 border border-navy-500';
+    finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
+  }
+
+            return `
+              <div class="bg-navy-600 p-3 rounded-lg border ${meta.border} flex flex-col justify-between shadow">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[10px] font-black px-1.5 py-0.5 rounded ${meta.badge}">${meta.pos} Place</span>
+                  <span class="font-mono text-cyan-400 font-bold text-xs">${p.market_odds ? '$' + p.market_odds.toFixed(2) : '$' + p.fair_win_odds.toFixed(2)}</span>
+                </div>
+                <div class="flex items-center space-x-2 my-1">
+                  <span class="inline-block w-10 h-10 flex items-center justify-center font-extrabold text-xl rounded-md shadow-md ${boxBadgeClass}">${p.box || '?'}</span>
+                  <button onclick="openDogDossier(this.dataset.id, this.dataset.name)" data-id="${p.dog_id || 0}" data-name="${safeDogName}" class="font-bold text-white text-xs truncate hover:text-accent-teal text-left transition cursor-pointer underline decoration-dotted decoration-gray-600">${p.dog_name}</button>
+${finishBadge}
+                </div>
+                <div class="mt-1 flex items-center justify-between text-[10px] text-slate-400 font-mono border-t border-navy-500 pt-1">
+                  <span>Win: ${(p.model_win_prob * 100).toFixed(1)}%</span>
+                  <span class="text-accent-teal font-semibold">Plc: ${(p.model_place_prob * 100).toFixed(0)}%</span>
+                  <span class="text-purple-300 font-semibold">Top4: ${((p.model_top4_prob || 0) * 100).toFixed(0)}%</span>
+                </div>
+
+              </div>
+            `;
+          }).join('');
+        } else {
+          top4Card.classList.add('hidden');
+        }
+
+        // Predictions Table
+        document.getElementById('analysis-table-card').classList.remove('hidden');
+    const tbody = document.getElementById('runners-tbody');
+        if (data.predictions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-500">No runner data available for this race.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.predictions.map(renderRunnerRow).join('');
+
+      } catch (e) {
+        alert('Failed loading race analysis');
+      }
+    }
+
+    let srmModeActive = true;
+    let selectedRaceTitle = '';
+
+    function toggleSrmMode() {
+      srmModeActive = !srmModeActive;
+      fetchMultis();
+    }
+
+    async function fetchMultis() {
+      const minOdds = document.getElementById('multi-odds-select').value;
+      const oddsSource = document.getElementById('multi-platform-select') ? document.getElementById('multi-platform-select').value : 'sportsbet';
+      const container = document.getElementById('multis-container');
+      const toggleContainer = document.getElementById('srm-toggle-container');
+      const contextText = document.getElementById('multi-context-text');
+      const toggleText = document.getElementById('btn-toggle-srm-text');
+
+      // Determine URL based on current race selection & srmModeActive
+      let url = `/api/multis?min_total_odds=${minOdds}&odds_source=${oddsSource}`;
+      const typeFilterContainer = document.getElementById('srm-type-filter-container');
+      
+      if (currentRaceId && srmModeActive) {
+        url += `&race_id=${currentRaceId}`;
+        toggleContainer.classList.remove('hidden');
+        if (typeFilterContainer) typeFilterContainer.classList.remove('hidden');
+        contextText.textContent = `Mode: Same Race Multi (${selectedRaceTitle || 'Selected Race'})`;
+        toggleText.textContent = 'Switch to Cross-Meeting Multis';
+      } else {
+        toggleContainer.classList.remove('hidden');
+        if (typeFilterContainer) typeFilterContainer.classList.add('hidden');
+        contextText.textContent = `Mode: Cross-Meeting Multis (+EV) [Feed: ${oddsSource.toUpperCase()}]`;
+        toggleText.textContent = currentRaceId ? 'Switch to Same Race Multi' : 'No Race Selected';
+      }
+
+      container.innerHTML = '<div class="p-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-amber-400"></i><p>Calculating optimal permutations using live market prices...</p></div>';
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        currentFetchedMultis = data.multis || [];
+        currentFetchedIsSrm = data.is_srm;
+        
+        renderFilteredMultis();
+
+      } catch (e) {
+        container.innerHTML = '<div class="p-8 text-center text-rose-400">Failed generating multis.</div>';
+      }
+    }
+
+    function renderFilteredMultis() {
+      const container = document.getElementById('multis-container');
+      const minOdds = document.getElementById('multi-odds-select').value;
+      const filterSelect = document.getElementById('srm-type-select');
+      const filterValue = filterSelect ? filterSelect.value : 'all';
+
+      let displayMultis = currentFetchedMultis;
+      
+      if (filterValue !== 'all') {
+          displayMultis = displayMultis.filter(m => m.type === filterValue);
+      }
+
+      if (displayMultis.length === 0) {
+        container.innerHTML = `
+          <div class="card p-8 text-center text-slate-500">
+            <p class="text-base text-[#C0C0C0] mb-1">No multi combinations matched the threshold ($${minOdds}+) and selected filter.</p>
+            <p class="text-xs">Try changing the filter type, lowering the minimum odds or synchronizing Sportsbet prices.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const isSrm = currentFetchedIsSrm;
+      container.innerHTML = displayMultis.map((m, idx) => `
+        <div class="card p-5 border-l-4 ${isSrm ? 'border-purple-500 hover:border-purple-400' : 'border-amber-500 hover:border-amber-400'} transition">
+          <div class="flex flex-wrap items-center justify-between pb-3 border-b border-navy-500 gap-2">
+            <div class="flex items-center space-x-3">
+              <span class="px-2 py-0.5 rounded ${isSrm ? 'bg-purple-950 text-purple-300 border-purple-800' : 'bg-amber-950 text-amber-300 border-amber-800'} font-bold text-xs border">
+                ${isSrm ? m.type : 'CROSS-MEETING MULTI #' + (idx + 1)}
+              </span>
+              <span class="text-lg font-bold text-white font-mono">$${m.total_odds.toFixed(2)} Odds</span>
+            </div>
+            <div class="flex items-center space-x-4 text-xs font-mono">
+              <div><span class="text-slate-500">Compound Win Prob:</span> <span class="text-accent-teal font-bold">${m.model_prob_pct.toFixed(2)}%</span></div>
+              <div><span class="text-slate-500">Expected Value:</span> <span class="text-amber-400 font-bold">+${(m.expected_value * 100).toFixed(1)}%</span></div>
+            </div>
+          </div>
+
+          <!-- Individual Legs -->
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-${m.legs.length} gap-3">
+            ${m.legs.map(leg => `
+              <div class="bg-navy-600 p-3 rounded border border-navy-500">
+                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                  <span class="font-bold text-white">${leg.track ? leg.track + ' R' + leg.race_number : (leg.condition || 'Selection')}</span>
+                  <span class="font-mono text-yellow-300 font-bold">$${leg.odds ? leg.odds.toFixed(2) : '-'}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <span class="inline-flex items-center justify-center w-10 h-10 text-center font-bold text-[10px] rounded badge-box-${leg.box}">${leg.box}</span>
+                  <span class="font-bold text-sm text-white truncate">${leg.dog_name}</span>
+                </div>
+                <div class="mt-2 text-[10px] flex justify-between text-slate-400 font-mono">
+                  <span>${leg.condition ? leg.condition : (leg.model_prob ? 'Model: ' + (leg.model_prob * 100).toFixed(1) + '%' : '')}</span>
+                  <span class="text-accent-teal font-bold">${leg.edge ? '+' + (leg.edge * 100).toFixed(1) + '% Edge' : '+EV'}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- Background Poller Daemon Controls ---
+    async function updateDaemonStatus() {
+      try {
+        const res = await fetch('/api/daemon/status');
+        if (!res.ok) return;
+        const d = await res.json();
+        const pulseEl = document.getElementById('daemon-pulse');
+        const textEl = document.getElementById('daemon-status-text');
+        const btnToggle = document.getElementById('btn-daemon-toggle');
+        
+        if (d.enabled) {
+          if (d.last_status_message && d.last_status_message.includes('Sleeping (Zzz)')) {
+            pulseEl.className = 'w-2 h-2 rounded-full bg-blue-400 inline-block';
+            textEl.textContent = d.last_status_message;
+          } else {
+            pulseEl.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse';
+            textEl.textContent = `Daemon: Active (${d.poll_interval_seconds}s)`;
+          }
+          btnToggle.textContent = 'Pause';
+          btnToggle.className = 'ml-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-200';
+        } else {
+          pulseEl.className = 'w-2 h-2 rounded-full bg-amber-500 inline-block';
+          textEl.textContent = 'Daemon: Paused';
+          btnToggle.textContent = 'Resume';
+          btnToggle.className = 'ml-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold';
+        }
+      } catch (e) {
+        // Silent catch
+      }
+    }
+
+    async function toggleDaemon() {
+      try {
+        await fetch('/api/daemon/toggle', { method: 'POST' });
+        updateDaemonStatus();
+      } catch (e) {
+        alert('Toggle daemon failed: ' + e);
+      }
+    }
+
+    async function pollDaemonNow() {
+      const btn = document.getElementById('btn-daemon-now');
+      try {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        await fetch('/api/daemon/poll-now', { method: 'POST' });
+        updateDaemonStatus();
+        updateStatus();
+        loadRaces(currentFilter);
+        if (currentRaceId) selectRace(currentRaceId);
+      } catch (e) {
+        alert('Manual poll failed: ' + e);
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-bolt"></i>';
+      }
+    }
+
+    // --- Historical Backtest Engine ---
+    async function runBacktest() {
+      const minEdge = document.getElementById('bt-min-edge').value;
+      const minOdds = document.getElementById('bt-min-odds').value;
+      const maxOdds = document.getElementById('bt-max-odds').value;
+      const staking = document.getElementById('bt-staking').value;
+      const oddsSource = document.getElementById('bt-odds-source').value;
+      const btn = document.getElementById('btn-run-backtest');
+      const tbody = document.getElementById('bt-bets-tbody');
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i><span>Simulating...</span>';
+      tbody.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-cyan-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Evaluating historical races & calculating calibration...</td></tr>';
+
+      try {
+        const url = `/api/backtest/run?min_edge=${minEdge}&min_odds=${minOdds}&max_odds=${maxOdds}&staking_method=${staking}&odds_source=${oddsSource}&flat_stake=${getSetting("stake", 10)}&initial_bankroll=${getSetting("bankroll", 1000)}&kelly_fraction=${getSetting("kelly", 0.25)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Update KPI metrics
+        document.getElementById('bt-stat-bets').textContent = data.total_bets || 0;
+        document.getElementById('bt-stat-races').textContent = `Across ${data.total_races_analyzed || 0} races`;
+        document.getElementById('bt-stat-sr').textContent = `${(data.strike_rate_pct || 0).toFixed(1)}%`;
+        document.getElementById('bt-stat-wins').textContent = `${data.winning_bets || 0}W / ${data.losing_bets || 0}L`;
+        
+        const pnlEl = document.getElementById('bt-stat-pnl');
+        const netProfit = data.net_profit || 0;
+        pnlEl.textContent = (netProfit >= 0 ? '+$' : '-$') + Math.abs(netProfit).toFixed(2);
+        pnlEl.className = 'text-xl font-bold font-mono mt-0.5 ' + (netProfit >= 0 ? 'text-accent-teal' : 'text-rose-400');
+        document.getElementById('bt-stat-staked').textContent = `Staked: $${(data.total_staked || 0).toFixed(0)}`;
+
+        const roiEl = document.getElementById('bt-stat-roi');
+        const roiVal = data.roi_pct || 0;
+        roiEl.textContent = `${roiVal >= 0 ? '+' : ''}${roiVal.toFixed(1)}%`;
+        roiEl.className = 'text-xl font-bold font-mono mt-0.5 ' + (roiVal >= 0 ? 'text-accent-teal' : 'text-rose-400');
+
+        document.getElementById('bt-stat-dd').textContent = `${(data.max_drawdown_pct || 0).toFixed(1)}%`;
+        document.getElementById('bt-stat-dd-dollars').textContent = `Peak drop: $${(data.max_drawdown_dollars || 0).toFixed(0)}`;
+        document.getElementById('bt-stat-brier').textContent = (data.brier_score || 0).toFixed(4);
+
+        // Render recent bets ledger
+        const bets = data.recent_bets || [];
+        if (bets.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-slate-500">No qualifying bets found with this edge and odds threshold.</td></tr>';
+        } else {
+          tbody.innerHTML = bets.map(b => {
+            const isWin = b.won;
+            const badgeClass = isWin ? 'bg-emerald-600 text-white font-bold' : 'bg-gray-800 text-slate-400';
+            const profitClass = b.profit >= 0 ? 'text-accent-teal font-bold' : 'text-rose-400';
+            const profitStr = (b.profit >= 0 ? '+$' : '-$') + Math.abs(b.profit).toFixed(2);
+            return `
+              <tr class="hover:bg-[#1f242c] transition">
+                <td class="p-2.5">
+                  <span class="inline-block px-1.5 py-0.5 rounded text-[10px] ${badgeClass}">${isWin ? 'WIN' : 'LOST'}</span>
+                </td>
+                <td class="p-2.5 font-mono text-[#C0C0C0] text-[11px]">${b.date} ${b.track} R${b.race_number}</td>
+                <td class="p-2.5 text-center">
+                  <span class="inline-flex items-center justify-center w-10 h-10 text-center font-bold text-[10px] rounded badge-box-${b.box}">${b.box}</span>
+                </td>
+                <td class="p-2.5 font-semibold text-white truncate max-w-[130px]">${b.dog_name}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-yellow-300">$${Number(b.odds).toFixed(2)}</td>
+                <td class="p-2.5 text-right font-mono text-white">${(b.model_prob * 100).toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-accent-teal">+${(b.edge * 100).toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-[#C0C0C0]">$${Number(b.stake).toFixed(2)}</td>
+                <td class="p-2.5 text-right font-mono ${profitClass}">${profitStr}</td>
+                <td class="p-2.5 text-right font-mono text-cyan-400 font-semibold">$${Number(b.bankroll).toFixed(2)}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+      } catch (err) {
+        alert('Backtest simulation failed: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-play text-[10px]"></i><span>Simulate</span>';
+      }
+    }
+
+    // --- Helper: Render Australian Greyhound Box Badge ---
+    function renderGreyhoundBoxPill(box, name) {
+      const boxStyles = {
+        1: 'bg-red-600 text-white font-bold',
+        2: 'bg-black text-white border border-slate-600 font-bold',
+        3: 'bg-white text-slate-950 font-black',
+        4: 'bg-blue-600 text-white font-bold',
+        5: 'bg-amber-400 text-slate-950 font-black',
+        6: 'bg-emerald-600 text-white font-bold',
+        7: 'bg-zinc-800 text-amber-300 border border-amber-500/50 font-bold',
+        8: 'bg-pink-500 text-white font-bold',
+        9: 'bg-purple-600 text-white font-bold',
+        10: 'bg-purple-600 text-white font-bold'
+      };
+      const cls = boxStyles[box] || 'bg-slate-700 text-white font-bold';
+      const cleanName = (name || '').replace(/\(from box \d+\)/g, '').trim();
+      return `
+        <span class="inline-flex items-center space-x-1.5 mr-2 mb-1 bg-navy-800/80 border border-navy-500/60 rounded px-1.5 py-0.5">
+          <span class="w-4 h-4 rounded flex items-center justify-center text-[10px] ${cls}">${box}</span>
+          <span class="text-slate-200 text-[11px] font-medium truncate max-w-[105px]">${cleanName}</span>
+        </span>
+      `;
+    }
+
+    // --- Daily Learning & First 4 Audit ---
+    async function runLearningAudit() {
+      const dateInput = document.getElementById('learning-date-input');
+      const trackFilter = document.getElementById('first4-track-filter');
+      const distFilter = document.getElementById('first4-dist-filter');
+      const btn = document.getElementById('btn-run-learning');
+
+      const tracksTbody = document.getElementById('learning-tracks-tbody');
+      const distTbody = document.getElementById('learning-dist-tbody');
+      const racesTbody = document.getElementById('first4-races-tbody');
+      const racesCountEl = document.getElementById('first4-races-count');
+
+      const targetDate = (dateInput && dateInput.value) ? dateInput.value : new Date().toISOString().split('T')[0];
+      const selectedTrack = (trackFilter && trackFilter.value) ? trackFilter.value : '';
+      const selectedDist = (distFilter && distFilter.value) ? distFilter.value : '';
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i><span>Auditing...</span>';
+      }
+      if (tracksTbody) {
+        tracksTbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-purple-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Auditing completed races against predictions...</td></tr>';
+      }
+      if (distTbody) {
+        distTbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-purple-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Evaluating distance categories...</td></tr>';
+      }
+      if (racesTbody) {
+        racesTbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-purple-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Generating race-by-race First 4 audit...</td></tr>';
+      }
+
+      try {
+        let url = `/api/reports/first4-audit?date=${encodeURIComponent(targetDate)}`;
+        if (selectedTrack) url += `&track=${encodeURIComponent(selectedTrack)}`;
+        if (selectedDist) url += `&distance=${encodeURIComponent(selectedDist)}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const summary = data.summary || {};
+
+        // Update Track & Distance Filter dropdowns dynamically if options not populated
+        if (trackFilter && data.available_tracks) {
+          const curVal = trackFilter.value;
+          const optionsHtml = '<option value="">All Locations</option>' + 
+            data.available_tracks.map(t => `<option value="${t}" ${t === curVal ? 'selected' : ''}>${t}</option>`).join('');
+          if (trackFilter.children.length <= 1 || trackFilter.children.length !== (data.available_tracks.length + 1)) {
+            trackFilter.innerHTML = optionsHtml;
+          }
+        }
+
+        if (distFilter && data.available_distances) {
+          const curVal = distFilter.value;
+          const distOptionsHtml = '<option value="">All Distances</option>' + 
+            data.available_distances.map(d => `<option value="${d}" ${String(d) === String(curVal) ? 'selected' : ''}>${d}m</option>`).join('');
+          if (distFilter.children.length <= 1 || distFilter.children.length !== (data.available_distances.length + 1)) {
+            distFilter.innerHTML = distOptionsHtml;
+          }
+        }
+
+        // Active Filter Label
+        const filterLblEl = document.getElementById('learn-filter-label');
+        if (filterLblEl) {
+          let parts = [];
+          if (selectedTrack) parts.push(selectedTrack);
+          if (selectedDist) parts.push(`${selectedDist}m`);
+          filterLblEl.textContent = parts.length > 0 ? parts.join(' · ') : 'All Tracks & Distances';
+        }
+
+        // Update KPI Metrics Cards
+        const total = summary.total_completed || 0;
+        document.getElementById('learn-total-races').textContent = total;
+
+        document.getElementById('learn-top1-rate').textContent = `${(summary.win_top1_pct || 0).toFixed(1)}%`;
+        document.getElementById('learn-top1-count').textContent = `${summary.win_top1 || 0} / ${total}`;
+
+        document.getElementById('learn-top4-rate').textContent = `${(summary.win_top4_pct || 0).toFixed(1)}%`;
+        document.getElementById('learn-top4-count').textContent = `${summary.win_top4 || 0} / ${total}`;
+
+        document.getElementById('learn-srm-rate').textContent = `${(summary.srm_3_of_4_pct || 0).toFixed(1)}%`;
+        document.getElementById('learn-srm-count').textContent = `${summary.srm_3_of_4 || 0} / ${total}`;
+
+        document.getElementById('learn-f4-rate').textContent = `${(summary.boxed_first4_4dog_pct || 0).toFixed(1)}%`;
+        document.getElementById('learn-f4-count').textContent = `${summary.boxed_first4_4dog || 0} / ${total}`;
+
+        const f5RateEl = document.getElementById('learn-f5-rate');
+        if (f5RateEl) f5RateEl.textContent = `${(summary.boxed_first4_5dog_pct || 0).toFixed(1)}%`;
+        const f5CountEl = document.getElementById('learn-f5-count');
+        if (f5CountEl) f5CountEl.textContent = `${summary.boxed_first4_5dog || 0} / ${total}`;
+
+        const f6RateEl = document.getElementById('learn-f6-rate');
+        if (f6RateEl) f6RateEl.textContent = `${(summary.boxed_first4_6dog_pct || 0).toFixed(1)}%`;
+        const f6CountEl = document.getElementById('learn-f6-count');
+        if (f6CountEl) f6CountEl.textContent = `${summary.boxed_first4_6dog || 0} / ${total} (Target)`;
+
+        const soRateEl = document.getElementById('learn-standout-rate');
+        if (soRateEl) soRateEl.textContent = `${(summary.key_standout_f4_pct || 0).toFixed(1)}%`;
+        const soCountEl = document.getElementById('learn-standout-count');
+        if (soCountEl) soCountEl.textContent = `${summary.key_standout_f4 || 0} / ${total}`;
+
+        // Populate Track Performance Table (with Multi-Tier First 4 columns)
+        if (tracksTbody) {
+          const tracks = data.breakdown_by_track || [];
+          if (tracks.length === 0) {
+            tracksTbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-500">No completed races found for this track filter.</td></tr>';
+          } else {
+            tracksTbody.innerHTML = tracks.map(t => `
+              <tr class="hover:bg-[#1f242c] transition">
+                <td class="p-2.5 font-bold text-white flex items-center space-x-1.5">
+                  <i class="fa-solid fa-location-dot text-[10px] text-cyan-400"></i>
+                  <span>${t.track}</span>
+                </td>
+                <td class="p-2.5 text-center font-mono text-slate-300">${t.races}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-accent-teal">${t.win_top1_pct.toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-amber-300 font-bold">${t.srm_3plus_pct.toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-yellow-300">${(t.boxed_first4_4dog_pct || 0).toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-cyan-300">${(t.boxed_first4_5dog_pct || 0).toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono font-bold text-purple-300">${(t.boxed_first4_6dog_pct || 0).toFixed(1)}%</td>
+              </tr>
+            `).join('');
+          }
+        }
+
+        // Populate Distance Breakdown Table (with Multi-Tier First 4 columns)
+        if (distTbody) {
+          const dists = data.breakdown_by_distance || [];
+          if (dists.length === 0) {
+            distTbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-500">No distance stats available.</td></tr>';
+          } else {
+            distTbody.innerHTML = dists.map(d => `
+              <tr class="hover:bg-[#1f242c] transition">
+                <td class="p-2.5 font-semibold text-white">${d.distance}m</td>
+                <td class="p-2.5 text-center font-mono text-slate-300">${d.races}</td>
+                <td class="p-2.5 text-right font-mono font-bold text-accent-teal">${d.win_top1_pct.toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-amber-300 font-bold">${d.srm_3plus_pct.toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-yellow-300">${(d.boxed_first4_4dog_pct || 0).toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono text-cyan-300">${(d.boxed_first4_5dog_pct || 0).toFixed(1)}%</td>
+                <td class="p-2.5 text-right font-mono font-bold text-purple-300">${(d.boxed_first4_6dog_pct || 0).toFixed(1)}%</td>
+              </tr>
+            `).join('');
+          }
+        }
+
+        // Store races data and render race table with current filter
+        lastAuditRacesData = data.races || [];
+        renderFirst4RacesTable();
+
+      } catch (err) {
+        console.error('Learning audit failed:', err);
+        if (tracksTbody) tracksTbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-rose-400">Failed to load audit metrics.</td></tr>';
+        if (distTbody) distTbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-rose-400">Failed to load distance metrics.</td></tr>';
+        if (racesTbody) racesTbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-rose-400">Failed to load race audit details.</td></tr>';
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-rotate text-[10px]"></i><span>Refresh Audit</span>';
+        }
+      }
+    }
+
+    // Global audit state & tier filtering
+    let lastAuditRacesData = [];
+    let currentAuditTierFilter = 'all';
+
+    function setAuditTierFilter(tier) {
+      currentAuditTierFilter = tier;
+      const tiers = ['all', '6dog', '5dog', '4dog', 'standout'];
+      tiers.forEach(t => {
+        const btn = document.getElementById(`audit-tier-btn-${t}`);
+        if (btn) {
+          if (t === tier) {
+            btn.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-purple-600 text-white transition shadow';
+          } else {
+            btn.className = 'px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition';
+          }
+        }
+      });
+      renderFirst4RacesTable();
+    }
+
+    function renderFirst4RacesTable() {
+      const racesTbody = document.getElementById('first4-races-tbody');
+      const racesCountEl = document.getElementById('first4-races-count');
+      if (!racesTbody) return;
+
+      let filtered = lastAuditRacesData;
+      if (currentAuditTierFilter === '6dog') {
+        filtered = lastAuditRacesData.filter(r => r.boxed_f4_6dog);
+      } else if (currentAuditTierFilter === '5dog') {
+        filtered = lastAuditRacesData.filter(r => r.boxed_f4_5dog);
+      } else if (currentAuditTierFilter === '4dog') {
+        filtered = lastAuditRacesData.filter(r => r.boxed_f4_4dog);
+      } else if (currentAuditTierFilter === 'standout') {
+        filtered = lastAuditRacesData.filter(r => r.key_standout_hit);
+      }
+
+      if (racesCountEl) {
+        const total = lastAuditRacesData.length;
+        const hitCount = filtered.length;
+        const pct = total > 0 ? ((hitCount / total) * 100).toFixed(1) : 0;
+        if (currentAuditTierFilter === 'all') {
+          racesCountEl.textContent = `${total} completed race${total === 1 ? '' : 's'}`;
+        } else {
+          racesCountEl.textContent = `${hitCount} / ${total} hit (${pct}%)`;
+        }
+      }
+
+      if (filtered.length === 0) {
+        racesTbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">No races found matching tier filter: ${currentAuditTierFilter}.</td></tr>`;
+        return;
+      }
+
+      racesTbody.innerHTML = filtered.map(r => {
+        // Choose boxes to display based on view tier:
+        let boxesToRender = r.pred_boxes;
+        if (currentAuditTierFilter === '6dog' && r.pred_boxes_6) {
+          boxesToRender = r.pred_boxes_6;
+        } else if (currentAuditTierFilter === '5dog' && r.pred_boxes_5) {
+          boxesToRender = r.pred_boxes_5;
+        }
+        const predPills = boxesToRender.map(b => renderGreyhoundBoxPill(b)).join('');
+        const actPills = r.actual_boxes.map((b, i) => renderGreyhoundBoxPill(b, r.actual_names[i])).join('');
+
+        // Overlap pill style
+        let overlapCls = 'bg-slate-800 text-slate-400 border border-slate-700';
+        if (r.overlap_count === 4) {
+          overlapCls = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 font-bold';
+        } else if (r.overlap_count === 3) {
+          overlapCls = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold';
+        } else if (r.overlap_count === 2) {
+          overlapCls = 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+        }
+
+        // Badges formatting
+        const badgesHtml = (r.badges && r.badges.length > 0)
+          ? r.badges.map(b => {
+              if (b === 'EXACT F4') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-black border border-amber-300 shadow">${b}</span>`;
+              } else if (b === '4-DOG F4') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/25 text-yellow-300 border border-yellow-500/60 shadow-sm">${b}</span>`;
+              } else if (b === '5-DOG F4') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">${b}</span>`;
+              } else if (b === '6-DOG F4') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/25 text-purple-200 border border-purple-500/60">${b}</span>`;
+              } else if (b === 'STANDOUT F4') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-300 border border-orange-500/50">${b}</span>`;
+              } else if (b === 'EXACT TRI' || b === 'TRIFECTA') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">${b}</span>`;
+              } else if (b.includes('SRM')) {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">${b}</span>`;
+              } else if (b === 'TOP 1 WIN') {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">${b}</span>`;
+              } else {
+                return `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">${b}</span>`;
+              }
+            }).join(' ')
+          : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-500 border border-slate-700">MISS</span>';
+
+        return `
+          <tr class="hover:bg-[#1f242c] transition">
+            <td class="p-2.5">
+              <span class="font-bold text-white block">${r.track} R${r.race_number}</span>
+              <span class="text-[10px] text-slate-400 font-mono">${r.start_time || 'Completed'}</span>
+            </td>
+            <td class="p-2.5 text-center font-mono">
+              <span class="text-white font-bold block">${r.distance}m</span>
+              <span class="text-[10px] text-slate-400">${r.grade}</span>
+            </td>
+            <td class="p-2.5">
+              <div class="flex flex-wrap items-center">${predPills}</div>
+            </td>
+            <td class="p-2.5">
+              <div class="flex flex-wrap items-center">${actPills}</div>
+            </td>
+            <td class="p-2.5 text-center">
+              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-mono ${overlapCls}">${r.overlap_count} / 4</span>
+            </td>
+            <td class="p-2.5 text-right whitespace-nowrap">
+              <div class="flex flex-wrap justify-end items-center gap-1">${badgesHtml}</div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function switchTab(tab) {
+      document.getElementById('view-analysis').classList.add('hidden');
+      document.getElementById('view-multis').classList.add('hidden');
+      document.getElementById('view-backtest').classList.add('hidden');
+      document.getElementById('view-learning').classList.add('hidden');
+  const vSet = document.getElementById('view-settings'); if(vSet) vSet.classList.add('hidden');
+
+      document.getElementById('tab-nav-analysis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
+      document.getElementById('tab-nav-multis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
+      document.getElementById('tab-nav-backtest').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
+      document.getElementById('tab-nav-learning').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
+    
+    // reset sidebar
+    const sideLinks = ['home', 'cards', 'analysis', 'multis', 'backtest', 'settings'];
+    sideLinks.forEach(id => {
+      const el = document.getElementById('side-nav-' + id);
+      if (el) el.className = 'flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm';
+    });
+
+
+      if (tab === 'analysis') {
+        document.getElementById('view-analysis').classList.remove('hidden');
+        document.getElementById('tab-nav-analysis').className = 'pb-3 active-tab flex items-center space-x-2';
+    const s_analysis = document.getElementById('side-nav-analysis');
+    if (s_analysis) s_analysis.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
+
+      } else if (tab === 'multis') {
+        document.getElementById('view-multis').classList.remove('hidden');
+        document.getElementById('tab-nav-multis').className = 'pb-3 active-tab flex items-center space-x-2';
+    const s_multis = document.getElementById('side-nav-multis');
+    if (s_multis) s_multis.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
+
+        srmModeActive = true;
+        fetchMultis();
+      } else if (tab === 'backtest') {
+        document.getElementById('view-backtest').classList.remove('hidden');
+        document.getElementById('tab-nav-backtest').className = 'pb-3 active-tab flex items-center space-x-2';
+    const s_backtest = document.getElementById('side-nav-backtest');
+    if (s_backtest) s_backtest.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
+
+        runBacktest();
+      } else if (tab === 'settings') {
+    const vSet = document.getElementById('view-settings'); if(vSet) vSet.classList.remove('hidden');
+    const s_set = document.getElementById('side-nav-settings');
+    if (s_set) s_set.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
+  } else if (tab === 'learning') {
+        document.getElementById('view-learning').classList.remove('hidden');
+        document.getElementById('tab-nav-learning').className = 'pb-3 active-tab flex items-center space-x-2';
+        runLearningAudit();
+      }
+    }
+
+    // Initial Load
+    const todayIso = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('learning-date-input');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = todayIso;
+    }
+    updateStatus();
+    updateDaemonStatus();
+    loadRaces('upcoming');
+
+    // Live background updates:
+    setInterval(updateStatus, 6000);
+    setInterval(updateDaemonStatus, 6000);
+
+    // Live refresh race cards & status every 15 seconds without losing user selection
+    setInterval(async () => {
+      try {
+        const res = await fetch(`/api/races?filter_status=${currentFilter}`);
+        rawLoadedRaces = await res.json();
+        populateTrackDropdown(rawLoadedRaces);
+        filterRaces();
+
+        // Also refresh currently selected race analysis if it was upcoming
+        if (currentRaceId) {
+          const detailRes = await fetch(`/api/races/${currentRaceId}`);
+          const detailData = await detailRes.json();
+          if (detailData && detailData.predictions && detailData.predictions.length > 0) {
+            document.getElementById('analysis-table-card').classList.remove('hidden');
+    const tbody = document.getElementById('runners-tbody');
+            if (tbody) tbody.innerHTML = detailData.predictions.map(renderRunnerRow).join('');
+          }
+        }
+      } catch (err) {
+        // Silent catch for background polling
+      }
+    }, 15000);
+  </script>
+\n</body>\n</html>
