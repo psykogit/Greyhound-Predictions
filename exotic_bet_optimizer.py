@@ -76,10 +76,11 @@ class ExoticBetOptimizer:
         selected_boxes: List[int],
         win_probs: Dict[int, float],
         stake: float = 20.0,
-        runner_names: Optional[Dict[int, str]] = None
+        runner_names: Optional[Dict[int, str]] = None,
+        market_odds: Optional[Dict[int, float]] = None
     ) -> Dict[str, Any]:
         """
-        Generates a Boxed Exotic Ticket (Trifecta or First 4).
+        Generates a Boxed Exotic Ticket (Trifecta or First 4) with projected tote dividends.
         - Trifecta: 3 legs (combinations = n * (n-1) * (n-2))
         - First 4: 4 legs (combinations = n * (n-1) * (n-2) * (n-3))
         """
@@ -92,16 +93,40 @@ class ExoticBetOptimizer:
 
         # Total combinations: n! / (n - req_len)!
         combos = math.perm(n, req_len)
-        flexi_pct = round((stake / combos) * 100.0, 2)
+        flexi_ratio = stake / max(1, combos)
+        flexi_pct = round(flexi_ratio * 100.0, 2)
 
         # Calculate joint probability of hitting this boxed ticket
         perm_dist = self.calculate_harville_permutations(win_probs, length=req_len)
         ticket_perms = list(itertools.permutations(selected_boxes, req_len))
         ticket_prob = sum(perm_dist.get(p, 0.0) for p in ticket_perms)
 
-        fair_dividend = round(1.0 / ticket_prob, 2) if ticket_prob > 0 else 0.0
-        projected_payout = round(fair_dividend * (flexi_pct / 100.0), 2)
-        expected_value = round((ticket_prob * (fair_dividend * flexi_pct / 100.0)) - stake, 2)
+        # Market-implied permutations for dividend projection (22% TAB takeout factor = 0.78 distribution)
+        divs = []
+        if market_odds and len(market_odds) >= req_len:
+            tot_mkt_p = sum(1.0 / max(1.01, market_odds.get(b, 10.0)) for b in market_odds)
+            mkt_probs = {b: (1.0 / max(1.01, market_odds.get(b, 10.0))) / tot_mkt_p for b in market_odds}
+            mkt_perm_dist = self.calculate_harville_permutations(mkt_probs, length=req_len)
+            for p in ticket_perms:
+                mp = mkt_perm_dist.get(p, 1e-6)
+                tote_div = round(0.78 / max(1e-6, mp), 2)
+                divs.append((tote_div, perm_dist.get(p, 0.0)))
+        else:
+            for p in ticket_perms:
+                tote_div = round(0.78 / max(1e-6, perm_dist.get(p, 1e-6)), 2)
+                divs.append((tote_div, perm_dist.get(p, 0.0)))
+
+        divs.sort(key=lambda x: x[0])
+        min_div = divs[0][0] if divs else 0.0
+        max_div = divs[-1][0] if divs else 0.0
+        weighted_div = round(sum(d[0] * d[1] for d in divs) / max(1e-6, ticket_prob), 2) if divs else 0.0
+
+        projected_payout = round(weighted_div * flexi_ratio, 2)
+        projected_min_payout = round(min_div * flexi_ratio, 2)
+        projected_max_payout = round(max_div * flexi_ratio, 2)
+        expected_value = round((ticket_prob * projected_payout) - stake, 2)
+        is_positive_ev = bool((ticket_prob * projected_payout) > stake)
+        break_even_div = round(combos * 1.0, 2)
 
         return {
             "exotic_type": exotic_type.upper(),
@@ -113,10 +138,184 @@ class ExoticBetOptimizer:
             "flexi_percent": flexi_pct,
             "win_probability": round(ticket_prob, 4),
             "win_probability_pct": round(ticket_prob * 100.0, 2),
-            "fair_dividend": fair_dividend,
+            "fair_dividend": round(1.0 / max(1e-6, ticket_prob), 2),
+            "est_min_dividend": min_div,
+            "est_avg_dividend": weighted_div,
+            "est_max_dividend": max_div,
             "projected_payout": projected_payout,
+            "projected_min_payout": projected_min_payout,
+            "projected_max_payout": projected_max_payout,
+            "break_even_dividend": break_even_div,
             "expected_value": expected_value,
-            "summary": f"{n}-Dog Boxed {exotic_type.title()} ({combos} combos) @ {flexi_pct}% Flexi (${stake:.2f} stake)"
+            "is_positive_ev": is_positive_ev,
+            "summary": f"{n}-Dog Boxed {exotic_type.title()} ({combos} combos) @ {flexi_pct}% Flexi (${stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${projected_payout:.2f})"
+        }
+
+    def estimate_boxed_first4_odds(
+        self,
+        race_id: int,
+        selected_boxes: Optional[List[int]] = None,
+        custom_stake: float = 12.0
+    ) -> Dict[str, Any]:
+        """
+        Calculates precise projected TAB / Pari-Mutuel tote odds, dividend ranges,
+        break-even thresholds, and expected value for a 5-dog boxed First 4 ticket.
+        Enables punters to verify whether their stake is mathematically positive (+EV).
+        """
+        preds = self.analytics.predict_race_probabilities(race_id)
+        if not preds:
+            raise ValueError(f"No active runners available for race {race_id}")
+
+        # Fetch race details
+        c = self.conn.cursor()
+        c.execute("""
+            SELECT r.race_number, r.distance, m.track_name, m.meeting_date
+            FROM races r
+            JOIN meetings m ON r.meeting_id = m.id
+            WHERE r.id = ?
+        """, (race_id,))
+        race_info = c.fetchone()
+        track = race_info["track_name"] if race_info else "Unknown"
+        race_num = race_info["race_number"] if race_info else 0
+        dist = race_info["distance"] if race_info else 0
+
+        # Auto-detect Top 4 + 5th Dog Value Roughie if not provided
+        if not selected_boxes:
+            top4_boxes = [p["box"] for p in preds[:4]]
+            roughie = next((p for p in preds if p.get("is_roughie")), None)
+            if roughie and roughie["box"] not in top4_boxes:
+                selected_boxes = list(top4_boxes) + [roughie["box"]]
+            elif len(preds) >= 5:
+                selected_boxes = [p["box"] for p in preds[:5]]
+            else:
+                selected_boxes = [p["box"] for p in preds]
+
+        win_probs = {p["box"]: p["model_win_prob"] for p in preds}
+        runner_names = {p["box"]: p["dog_name"] for p in preds}
+        market_odds = {
+            p["box"]: float(p.get("best_odds") or p.get("sportsbet_odds") or p.get("market_odds") or p.get("fair_win_odds", 10.0))
+            for p in preds
+        }
+
+        # Market-implied normalized probabilities for pool dividend estimation
+        tot_mkt_p = sum(1.0 / max(1.01, market_odds.get(b, 10.0)) for b in market_odds)
+        mkt_probs = {b: (1.0 / max(1.01, market_odds.get(b, 10.0))) / tot_mkt_p for b in market_odds}
+
+        combos = math.perm(len(selected_boxes), 4)
+        perms = list(itertools.permutations(selected_boxes, 4))
+        flexi_ratio = custom_stake / max(1, combos)
+        flexi_pct = round(flexi_ratio * 100.0, 2)
+
+        div_items = []
+        tot_prob = 0.0
+
+        for perm in perms:
+            b1, b2, b3, b4 = perm
+            # Model probability
+            p1 = win_probs.get(b1, 0.01)
+            p2 = win_probs.get(b2, 0.01) / max(0.001, 1.0 - p1)
+            p3 = win_probs.get(b3, 0.01) / max(0.001, 1.0 - p1 - win_probs.get(b2, 0.01))
+            p4 = win_probs.get(b4, 0.01) / max(0.001, 1.0 - p1 - win_probs.get(b2, 0.01) - win_probs.get(b3, 0.01))
+            prob = max(1e-7, p1 * p2 * p3 * p4)
+            tot_prob += prob
+
+            # Market probability
+            mp1 = mkt_probs.get(b1, 0.01)
+            mp2 = mkt_probs.get(b2, 0.01) / max(0.001, 1.0 - mp1)
+            mp3 = mkt_probs.get(b3, 0.01) / max(0.001, 1.0 - mp1 - mkt_probs.get(b2, 0.01))
+            mp4 = mkt_probs.get(b4, 0.01) / max(0.001, 1.0 - mp1 - mkt_probs.get(b2, 0.01) - mkt_probs.get(b3, 0.01))
+            mkt_prob = max(1e-7, mp1 * mp2 * mp3 * mp4)
+
+            # Standard TAB First 4 takeout 22% (0.78 payout factor)
+            tote_div = round(0.78 / mkt_prob, 2)
+            payout = round(tote_div * flexi_ratio, 2)
+
+            div_items.append({
+                "combination": list(perm),
+                "runner_names": [runner_names.get(b, f"Box {b}") for b in perm],
+                "model_prob": prob,
+                "projected_dividend": tote_div,
+                "projected_payout": payout,
+                "is_profitable": payout > custom_stake
+            })
+
+        div_items.sort(key=lambda x: x["projected_dividend"])
+        min_div = div_items[0]["projected_dividend"] if div_items else 0.0
+        max_div = div_items[-1]["projected_dividend"] if div_items else 0.0
+        median_div = div_items[len(div_items)//2]["projected_dividend"] if div_items else 0.0
+        weighted_div = sum(d["projected_dividend"] * d["model_prob"] for d in div_items) / max(1e-6, tot_prob) if div_items else 0.0
+
+        proj_min_payout = round(min_div * flexi_ratio, 2)
+        proj_avg_payout = round(weighted_div * flexi_ratio, 2)
+        proj_max_payout = round(max_div * flexi_ratio, 2)
+        proj_net_profit = round(proj_avg_payout - custom_stake, 2)
+        expected_value = round((tot_prob * proj_avg_payout) - custom_stake, 2)
+        profitable_count = sum(1 for d in div_items if d["is_profitable"])
+        break_even_div = round(combos * 1.0, 2)
+
+        # Top 5 most likely finish combinations
+        likely_sorted = sorted(div_items, key=lambda x: x["model_prob"], reverse=True)
+        top5_preview = [
+            {
+                "order": "-".join(str(x) for x in d["combination"]),
+                "names": d["runner_names"],
+                "probability_pct": round(d["model_prob"] * 100.0, 2),
+                "dividend": d["projected_dividend"],
+                "payout": d["projected_payout"],
+                "profit": round(d["projected_payout"] - custom_stake, 2)
+            }
+            for d in likely_sorted[:5]
+        ]
+
+        # Recommendation verdict
+        if expected_value >= 5.0:
+            verdict = "STRONG VALUE (+EV)"
+            verdict_note = f"Highly attractive overlay. Model projects an expected net return of +${expected_value:.2f} on a ${custom_stake:.2f} ticket."
+        elif expected_value > 0.0:
+            verdict = "POSITIVE (+EV)"
+            verdict_note = f"Positive mathematical expectation. Projected return exceeds ${custom_stake:.2f} outlay."
+        else:
+            verdict = "MARGINAL / DEFENSIVE"
+            verdict_note = f"Heavily dominated by low-paying favorites. Consider reducing stake or anchoring top pick."
+
+        return {
+            "race_id": race_id,
+            "track_name": track,
+            "race_number": race_num,
+            "distance": dist,
+            "selected_boxes": selected_boxes,
+            "selected_runners": [
+                {
+                    "box": b,
+                    "name": runner_names.get(b, f"Box {b}"),
+                    "odds": market_odds.get(b, 0.0),
+                    "win_prob_pct": round(win_probs.get(b, 0.0) * 100.0, 1)
+                }
+                for b in selected_boxes
+            ],
+            "combinations_count": combos,
+            "stake": custom_stake,
+            "flexi_percent": flexi_pct,
+            "hit_probability": round(tot_prob, 4),
+            "hit_probability_pct": round(tot_prob * 100.0, 1),
+            "break_even_dividend": break_even_div,
+            "break_even_note": f"Any First 4 dividend above ${break_even_div:.2f} guarantees a positive net profit on this {combos}-combination ticket.",
+            "est_min_dividend": round(min_div, 2),
+            "est_avg_dividend": round(weighted_div, 2),
+            "est_median_dividend": round(median_div, 2),
+            "est_max_dividend": round(max_div, 2),
+            "projected_min_payout": proj_min_payout,
+            "projected_avg_payout": proj_avg_payout,
+            "projected_max_payout": proj_max_payout,
+            "projected_net_profit": proj_net_profit,
+            "projected_roi_pct": round((proj_net_profit / max(1.0, custom_stake)) * 100.0, 1),
+            "expected_value": expected_value,
+            "is_positive_ev": expected_value > 0,
+            "profitable_combinations_pct": round((profitable_count / max(1, combos)) * 100.0, 1),
+            "verdict": verdict,
+            "verdict_note": verdict_note,
+            "top_combinations_preview": top5_preview,
+            "summary": f"5-Dog Boxed First 4 ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
         }
 
     def build_standout_ticket(
@@ -353,6 +552,10 @@ class ExoticBetOptimizer:
         sorted_runners = sorted(preds, key=lambda x: x["model_win_prob"], reverse=True)
         win_probs = {r["box"]: r["model_win_prob"] for r in sorted_runners}
         runner_names = {r["box"]: r["dog_name"] for r in sorted_runners}
+        market_odds = {
+            r["box"]: float(r.get("best_odds") or r.get("sportsbet_odds") or r.get("market_odds") or r.get("fair_win_odds", 10.0))
+            for r in sorted_runners
+        }
 
         top_boxes = [r["box"] for r in sorted_runners]
         top_3_boxes = top_boxes[:3]
@@ -400,13 +603,14 @@ class ExoticBetOptimizer:
             ],
             "first_4_tickets": [],
             "trifecta_tickets": [],
-            "dutching_recommendations": []
+            "dutching_recommendations": [],
+            "boxed_first4_odds_estimate": None
         }
 
         # --- 1. MULTI-TIERED FIRST 4 TICKETS ---
         # Tier 1: 4-Dog Boxed First 4 (Precision Box - 24 combos)
         if len(top_4_boxes) == 4:
-            t4 = self.build_boxed_ticket("first_4", top_4_boxes, win_probs, stake=f4_stake, runner_names=runner_names)
+            t4 = self.build_boxed_ticket("first_4", top_4_boxes, win_probs, stake=f4_stake, runner_names=runner_names, market_odds=market_odds)
             t4["tier"] = "TIER_1_PRECISION"
             t4["tier_label"] = "Tier 1: 4-Dog Box (Precision)"
             t4["tier_description"] = "24 combinations • High flexi dividend • Primary contenders"
@@ -426,18 +630,23 @@ class ExoticBetOptimizer:
 
         # Tier 2: 5-Dog Boxed First 4 (Top 4 + Value Roughie - 120 combos)
         if len(value_5_boxes) == 5:
-            t5 = self.build_boxed_ticket("first_4", value_5_boxes, win_probs, stake=f4_stake, runner_names=runner_names)
+            t5 = self.build_boxed_ticket("first_4", value_5_boxes, win_probs, stake=f4_stake, runner_names=runner_names, market_odds=market_odds)
             t5["tier"] = "TIER_2_BALANCED"
             t5["tier_label"] = f"Tier 2: 5-Dog Box (Top 4 + Roughie {roughie_tag})"
             t5["tier_description"] = f"120 combinations • Includes dangerous 5th dog {roughie_tag} to catch massive upset dividends"
             t5["roughie_included"] = roughie_tag
             tickets["first_4_tickets"].append(t5)
 
+            # Generate full Boxed First 4 Odds & Staking Analysis
+            tickets["boxed_first4_odds_estimate"] = self.estimate_boxed_first4_odds(
+                race_id, selected_boxes=value_5_boxes, custom_stake=f4_stake
+            )
+
         # Tier 3: 6-Dog Boxed First 4 (Maximum Coverage - 360 combos)
         if len(top_6_boxes) == 6:
             # Staking: $18 gives 5% Flexi; $36 gives 10% Flexi
             cov_stake = max(f4_stake, 18.0) if custom_stake is None else custom_stake
-            t6 = self.build_boxed_ticket("first_4", top_6_boxes, win_probs, stake=cov_stake, runner_names=runner_names)
+            t6 = self.build_boxed_ticket("first_4", top_6_boxes, win_probs, stake=cov_stake, runner_names=runner_names, market_odds=market_odds)
             t6["tier"] = "TIER_3_MAX_COVERAGE"
             t6["tier_label"] = "Tier 3: 6-Dog Box (Maximum Coverage ~75% Target)"
             t6["tier_description"] = "360 combinations • ~65-75% hit coverage • Insulates against roughies in 3rd/4th"

@@ -278,6 +278,15 @@ def get_race_analysis(race_id: int):
     raw_tips = race["expert_tips"] if race and "expert_tips" in race.keys() else None
     parsed_tips = [int(x.strip()) for x in raw_tips.split(",") if x.strip().isdigit()] if raw_tips else None
 
+    # Estimate 5-Dog Boxed First 4 Odds & Staking Payouts
+    from exotic_bet_optimizer import ExoticBetOptimizer
+    f4_odds_estimate = None
+    try:
+        f4_opt = ExoticBetOptimizer()
+        f4_odds_estimate = f4_opt.estimate_boxed_first4_odds(race_id, selected_boxes=top5_boxes, custom_stake=12.0)
+    except Exception as e:
+        logger.warning(f"Failed to estimate First 4 odds for race {race_id}: {e}")
+
     return {
         "race": {
             "id": race["id"],
@@ -295,8 +304,24 @@ def get_race_analysis(race_id: int):
         "predictions": predictions,
         "value_roughie": value_roughie,
         "top4_boxes": top4_boxes,
-        "top5_boxed": top5_boxes
+        "top5_boxed": top5_boxes,
+        "boxed_first4_estimate": f4_odds_estimate
     }
+
+
+@app.get("/api/races/{race_id}/estimate-first4")
+def estimate_first4_odds_api(race_id: int, stake: float = 12.0, boxes: Optional[str] = None):
+    """
+    Returns live projected tote dividends, payouts, break-even targets,
+    and expected value for a 5-dog boxed First 4 ticket.
+    """
+    from exotic_bet_optimizer import ExoticBetOptimizer
+    try:
+        optimizer = ExoticBetOptimizer()
+        selected_boxes = [int(b.strip()) for b in boxes.split(",") if b.strip().isdigit()] if boxes else None
+        return optimizer.estimate_boxed_first4_odds(race_id, selected_boxes=selected_boxes, custom_stake=stake)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/races/{race_id}/exotics")
