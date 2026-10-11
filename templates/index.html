@@ -322,27 +322,82 @@
           
           <!-- Value Edge Table -->
           <div class="card overflow-hidden border-navy-500 hidden" id="analysis-table-card">
-            <div class="flex items-center justify-between p-4 border-b border-navy-500 bg-[#16212D]">
-              <h3 class="text-[11px] font-bold text-slate-200 tracking-wider flex items-center space-x-2">
-                <i class="fa-solid fa-chart-simple text-accent-teal"></i>
-                <span>Softmax Probability & Value Edge Ratings</span>
-              </h3>
-              <span class="text-[10px] text-slate-400">Sportsbet fixed odds highlighted; green indicates +EV edge</span>
+            <div class="flex items-center justify-between p-3.5 border-b border-navy-500 bg-[#16212D] flex-wrap gap-2.5">
+              <div class="flex items-center space-x-3">
+                <h3 class="text-xs font-bold text-slate-200 tracking-wider flex items-center space-x-2">
+                  <i class="fa-solid fa-chart-simple text-accent-teal"></i>
+                  <span>Softmax Probability & Value Edge Ratings</span>
+                </h3>
+                <span class="text-[10px] text-slate-400 hidden sm:inline border-l border-navy-500 pl-2">Sportsbet fixed odds highlighted • Green indicates +EV edge</span>
+              </div>
+              
+              <!-- Quick Sort Toggle Bar -->
+              <div class="flex items-center space-x-2 text-xs">
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sort:</span>
+                <div class="inline-flex rounded-lg bg-navy-800 p-0.5 border border-navy-500 space-x-0.5">
+                  <button id="pill-sort-model_win" onclick="setRunnerSort('model_win')" class="px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center space-x-1 bg-emerald-600 text-white shadow" title="Sort by Model Win Probability">
+                    <span>Model Win%</span>
+                    <i id="pill-icon-model_win" class="fa-solid fa-arrow-down-wide-short text-[10px]"></i>
+                  </button>
+                  <button id="pill-sort-hype" onclick="setRunnerSort('hype')" class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1" title="Sort by Public / Bookmaker Hype (Implied Win %)">
+                    <span>Hype %</span>
+                    <i id="pill-icon-hype" class="fa-solid fa-sort text-[10px] text-slate-600"></i>
+                  </button>
+                  <button id="pill-sort-edge" onclick="setRunnerSort('edge')" class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1" title="Sort by Sportsbet +EV Edge">
+                    <span>SB Edge</span>
+                    <i id="pill-icon-edge" class="fa-solid fa-sort text-[10px] text-slate-600"></i>
+                  </button>
+                  <button id="pill-sort-box" onclick="setRunnerSort('box')" class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1" title="Sort by Box Number">
+                    <span>Box #</span>
+                    <i id="pill-icon-box" class="fa-solid fa-sort text-[10px] text-slate-600"></i>
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left whitespace-nowrap">
-                <thead class="bg-navy-700">
+                <thead class="bg-navy-700 select-none">
                   <tr>
-                    <th class="w-12 text-center">#</th>
-                    <th>Greyhound</th>
+                    <th id="th-col-box" onclick="setRunnerSort('box')" class="w-12 text-center cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Box Number">
+                      <div class="flex items-center justify-center space-x-1">
+                        <span>#</span>
+                        <i id="th-sort-box" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                      </div>
+                    </th>
+                    <th id="th-col-name" onclick="setRunnerSort('name')" class="cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Greyhound Name">
+                      <div class="flex items-center space-x-1">
+                        <span>Greyhound</span>
+                        <i id="th-sort-name" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                      </div>
+                    </th>
                     <th>Trainer</th>
-                    <th class="text-right text-pink-400" title="Market Implied Win Probability % (1 / Odds)">Hype %</th>
-                    <th class="text-right">Model Win%</th>
+                    <th id="th-col-hype" onclick="setRunnerSort('hype')" class="text-right text-pink-400 cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Market Implied Win Probability % (1 / Odds)">
+                      <div class="flex items-center justify-end space-x-1">
+                        <span>Hype %</span>
+                        <i id="th-sort-hype" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                      </div>
+                    </th>
+                    <th id="th-col-model_win" onclick="setRunnerSort('model_win')" class="text-right cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Model Win %">
+                      <div class="flex items-center justify-end space-x-1">
+                        <span>Model Win%</span>
+                        <i id="th-sort-model_win" class="fa-solid fa-arrow-down-wide-short text-[10px] text-accent-teal"></i>
+                      </div>
+                    </th>
                     <th class="text-right">Fair Odds</th>
-                    <th class="text-right text-amber-400">Sportsbet Win</th>
+                    <th id="th-col-odds" onclick="setRunnerSort('odds')" class="text-right text-amber-400 cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Sportsbet Odds">
+                      <div class="flex items-center justify-end space-x-1">
+                        <span>Sportsbet Win</span>
+                        <i id="th-sort-odds" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                      </div>
+                    </th>
                     <th class="text-right text-amber-400">SB Place</th>
                     <th class="text-right text-purple-400" title="TheDogs Official Starting Price (SP) / Fixed Odds">TheDogs SP</th>
-                    <th class="text-right text-accent-green">SB Edge</th>
+                    <th id="th-col-edge" onclick="setRunnerSort('edge')" class="text-right text-accent-green cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Sportsbet Edge">
+                      <div class="flex items-center justify-end space-x-1">
+                        <span>SB Edge</span>
+                        <i id="th-sort-edge" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody id="runners-tbody" class="bg-navy-600 divide-y divide-navy-500">
@@ -1023,10 +1078,10 @@ let currentRaceId = null;
       const hypeStr = hypeVal !== null ? `${hypeVal}%` : '-';
 
       let highlightPlace = false;
+      const rank = p.model_rank || (idx + 1);
       if (arr && arr.length > 0 && p.sportsbet_place_odds && p.sportsbet_place_odds > 2.20) {
           const activeRunners = arr.length;
           const pays3rd = activeRunners >= 8;
-          const rank = idx + 1;
           if (pays3rd && rank <= 3) {
               highlightPlace = true;
           } else if (!pays3rd && rank <= 2) {
@@ -1065,6 +1120,138 @@ ${finishBadge}
           <td class="p-3 text-right font-mono ${edgeClass}">${edgeFormatted}</td>
         </tr>
       `;
+    }
+
+    // Runner Table Sorting System
+    let currentSortColumn = 'model_win';
+    let currentSortDirection = 'desc';
+    let currentRacePredictions = [];
+
+    function getRunnerHype(p) {
+      if (p.hype_score !== undefined && p.hype_score !== null && !isNaN(p.hype_score)) {
+        return Number(p.hype_score);
+      }
+      if (p.sportsbet_odds && Number(p.sportsbet_odds) > 1.0) {
+        return Number(((1.0 / Number(p.sportsbet_odds)) * 100).toFixed(1));
+      }
+      const td = p.sp_odds || p.market_odds;
+      if (td && Number(td) > 1.0) {
+        return Number(((1.0 / Number(td)) * 100).toFixed(1));
+      }
+      return 0;
+    }
+
+    function getRunnerEdge(p) {
+      const e = (p.sportsbet_edge !== null && p.sportsbet_edge !== undefined) ? p.sportsbet_edge : p.edge;
+      return (e !== null && e !== undefined && !isNaN(e)) ? Number(e) : -999;
+    }
+
+    function setRunnerSort(col) {
+      if (currentSortColumn === col) {
+        currentSortDirection = currentSortDirection === 'desc' ? 'asc' : 'desc';
+      } else {
+        currentSortColumn = col;
+        currentSortDirection = (col === 'box' || col === 'name') ? 'asc' : 'desc';
+      }
+      renderSortedPredictionsTable();
+    }
+
+    function renderSortedPredictionsTable() {
+      const tbody = document.getElementById('runners-tbody');
+      if (!tbody || !currentRacePredictions || currentRacePredictions.length === 0) return;
+
+      const sorted = [...currentRacePredictions].sort((a, b) => {
+        let valA = 0;
+        let valB = 0;
+
+        switch (currentSortColumn) {
+          case 'hype':
+            valA = getRunnerHype(a);
+            valB = getRunnerHype(b);
+            break;
+          case 'model_win':
+            valA = Number(a.model_win_prob || 0);
+            valB = Number(b.model_win_prob || 0);
+            break;
+          case 'edge':
+            valA = getRunnerEdge(a);
+            valB = getRunnerEdge(b);
+            break;
+          case 'odds':
+            valA = Number(a.sportsbet_odds || a.market_odds || 999);
+            valB = Number(b.sportsbet_odds || b.market_odds || 999);
+            break;
+          case 'box':
+            valA = Number(a.box || 99);
+            valB = Number(b.box || 99);
+            break;
+          case 'name':
+            valA = (a.dog_name || '').toLowerCase();
+            valB = (b.dog_name || '').toLowerCase();
+            if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+            return 0;
+          default:
+            valA = Number(a.model_win_prob || 0);
+            valB = Number(b.model_win_prob || 0);
+        }
+
+        if (currentSortDirection === 'asc') {
+          return valA > valB ? 1 : (valA < valB ? -1 : 0);
+        } else {
+          return valA < valB ? 1 : (valA > valB ? -1 : 0);
+        }
+      });
+
+      tbody.innerHTML = sorted.map((p, idx, arr) => renderRunnerRow(p, idx, arr)).join('');
+      updateSortIndicators();
+    }
+
+    function updateSortIndicators() {
+      const cols = ['model_win', 'hype', 'edge', 'box'];
+      cols.forEach(col => {
+        const pill = document.getElementById(`pill-sort-${col}`);
+        const pillIcon = document.getElementById(`pill-icon-${col}`);
+        if (pill) {
+          if (currentSortColumn === col) {
+            let activeBg = 'bg-emerald-600 text-white shadow font-extrabold';
+            if (col === 'hype') activeBg = 'bg-pink-600 text-white shadow font-extrabold';
+            if (col === 'edge') activeBg = 'bg-teal-600 text-white shadow font-extrabold';
+            if (col === 'box') activeBg = 'bg-blue-600 text-white shadow font-extrabold';
+            pill.className = `px-2.5 py-1 rounded text-[11px] transition flex items-center space-x-1 ${activeBg}`;
+            if (pillIcon) {
+              pillIcon.className = currentSortDirection === 'desc' ? 'fa-solid fa-arrow-down-wide-short text-[10px]' : 'fa-solid fa-arrow-up-wide-short text-[10px]';
+            }
+          } else {
+            pill.className = 'px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white hover:bg-navy-700/60 transition flex items-center space-x-1';
+            if (pillIcon) {
+              pillIcon.className = 'fa-solid fa-sort text-[10px] text-slate-600';
+            }
+          }
+        }
+      });
+
+      const thCols = ['box', 'name', 'hype', 'model_win', 'odds', 'edge'];
+      thCols.forEach(col => {
+        const icon = document.getElementById(`th-sort-${col}`);
+        const th = document.getElementById(`th-col-${col}`);
+        if (icon) {
+          if (currentSortColumn === col) {
+            icon.className = currentSortDirection === 'desc' 
+              ? 'fa-solid fa-arrow-down-wide-short text-[10px] text-accent-teal ml-1' 
+              : 'fa-solid fa-arrow-up-wide-short text-[10px] text-accent-teal ml-1';
+          } else {
+            icon.className = 'fa-solid fa-sort text-[9px] text-slate-500 ml-1 opacity-40 group-hover:opacity-100 transition';
+          }
+        }
+        if (th) {
+          if (currentSortColumn === col) {
+            th.classList.add('bg-navy-600/70', 'text-white');
+          } else {
+            th.classList.remove('bg-navy-600/70', 'text-white');
+          }
+        }
+      });
     }
 
     async function openDogDossier(dogId, dogName) {
@@ -1525,13 +1712,14 @@ ${finishBadge}
 
         // Predictions Table
         document.getElementById('analysis-table-card').classList.remove('hidden');
-    const tbody = document.getElementById('runners-tbody');
-        if (data.predictions.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-500">No runner data available for this race.</td></tr>';
+        const tbody = document.getElementById('runners-tbody');
+        if (!data.predictions || data.predictions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-slate-500">No runner data available for this race.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = data.predictions.map(renderRunnerRow).join('');
+        currentRacePredictions = (data.predictions || []).map((p, idx) => ({ ...p, model_rank: idx + 1 }));
+        renderSortedPredictionsTable();
 
       } catch (e) {
         alert('Failed loading race analysis');
@@ -2351,8 +2539,8 @@ ${finishBadge}
           const detailData = await detailRes.json();
           if (detailData && detailData.predictions && detailData.predictions.length > 0) {
             document.getElementById('analysis-table-card').classList.remove('hidden');
-    const tbody = document.getElementById('runners-tbody');
-            if (tbody) tbody.innerHTML = detailData.predictions.map(renderRunnerRow).join('');
+            currentRacePredictions = detailData.predictions.map((p, idx) => ({ ...p, model_rank: idx + 1 }));
+            renderSortedPredictionsTable();
           }
         }
       } catch (err) {
