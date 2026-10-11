@@ -552,7 +552,9 @@ class GreyhoundAnalytics:
                 "optimal_weight": None,
                 "last_weight": None,
                 "days_since_last_start": None,
-                "career_starts": g_row["career_starts"] if g_row else 0
+                "career_starts": g_row["career_starts"] if g_row else 0,
+                "straight_starts": 0,
+                "capalaba_starts": 0
             }
 
         splits = []
@@ -650,6 +652,9 @@ class GreyhoundAnalytics:
         all_weights = [s["weight"] for s in starts if s["weight"] is not None]
         optimal_weight = statistics.median(win_weights) if win_weights else (statistics.median(all_weights) if all_weights else None)
 
+        straight_starts = sum(1 for s in starts if any(st in str(s["track_code"] if "track_code" in s.keys() else "").upper() for st in ["HEA", "CAP", "RBS", "MBS", "QST"]))
+        capalaba_starts = sum(1 for s in starts if "CAP" in str(s["track_code"] if "track_code" in s.keys() else "").upper())
+
         return {
             "starts_count": len(starts),
             "avg_split_1": sum(splits) / len(splits) if splits else None,
@@ -667,6 +672,8 @@ class GreyhoundAnalytics:
             "last_weight": starts[0]["weight"] if starts else None,
             "days_since_last_start": dsls,
             "career_starts": g_row["career_starts"] if g_row else len(starts),
+            "straight_starts": straight_starts,
+            "capalaba_starts": capalaba_starts,
             "avg_recent_grade": avg_recent_grade,
             "proven_stamina": proven_stamina
         }
@@ -978,6 +985,8 @@ class GreyhoundAnalytics:
                 "dsls": profile.get("days_since_last_start"),
                 "starts_count": profile.get("starts_count", 0),
                 "career_starts": profile.get("career_starts", 0),
+                "straight_starts": profile.get("straight_starts", 0),
+                "capalaba_starts": profile.get("capalaba_starts", 0),
                 "place_rate": profile.get("place_rate", 0.0),
                 "win_rate": profile.get("win_rate", 0.0),
                 "avg_recent_grade": profile.get("avg_recent_grade"),
@@ -1974,12 +1983,30 @@ class GreyhoundAnalytics:
             if is_restricted_or_maiden:
                 f_str = str(m.get("form_string") or "").strip().upper()
                 c_starts = m.get("career_starts", 0)
-                if form_score >= 4.5 and (c_starts >= 2 or len(f_str) >= 2):
-                    # Proven maiden racecraft (handled box noise, crowding, repeated placings)
-                    base_power *= 1.10
-                elif not f_str or f_str == "N/A" or c_starts == 0:
-                    # Unraced maiden debutante (prone to greenness, missing kick in competitive packs)
-                    base_power *= 0.92
+                st_starts = m.get("straight_starts", 0)
+                cap_starts = m.get("capalaba_starts", 0)
+                is_capalaba = "CAPALABA" in (track_name or "").upper()
+                is_debutant = (not f_str or f_str == "N/A" or c_starts == 0)
+
+                if is_straight:
+                    # Straight Track Maiden Dynamics (Capalaba Turf, Healesville Sand, etc.):
+                    # 1. Unraced debutants lack corner rails to guide them and frequently run greenly/veer off line.
+                    if is_debutant:
+                        base_power *= 0.84  # Green debutant discount down the straight
+                    # 2. Exposed maidens with prior straight/Capalaba starts understand the lure line and maintain stride:
+                    elif st_starts >= 2 or cap_starts >= 1 or c_starts >= 3:
+                        turf_bonus = 1.15 if is_capalaba else 1.12
+                        base_power *= turf_bonus
+                    elif form_score >= 4.5:
+                        base_power *= 1.10
+                else:
+                    # Circular Tracks with Turns
+                    if form_score >= 4.5 and (c_starts >= 2 or len(f_str) >= 2):
+                        # Proven maiden racecraft (handled box noise, crowding, repeated placings)
+                        base_power *= 1.10
+                    elif is_debutant:
+                        # Unraced maiden debutante (prone to greenness, missing kick in competitive packs)
+                        base_power *= 0.92
             squeeze_factor = 1.0
             if is_straight:
                 # On straight tracks: outside advantage is fully captured in calibrated box bias above!
@@ -2380,23 +2407,32 @@ class GreyhoundAnalytics:
             for sr, p_model, p_mkt in zip(scored_runners, final_win_probs, norm_market_probs):
                 runner_w_mkt = w_market
                 # Adaptive runner-level market weighting:
-                # A. Heavily supported market favorites (p_mkt >= 0.30, ~ <= $3.30):
-                # Elevate market prior so missing track metrics or small-sample factors don't drag down the standout favorite
-                if p_mkt >= 0.30:
-                    runner_w_mkt = max(runner_w_mkt, 0.48)
-                elif (sr.get("best_time") is None or sr.get("is_synthesized_pb") or sr.get("split_1") == avg_race_split) and p_mkt >= 0.18:
-                    # Runner has unproven or missing track metrics but is strongly supported by the market (<= $5.50)
-                    runner_w_mkt = max(runner_w_mkt, 0.45)
-                elif p_mkt <= 0.03 and sr.get("form_score", 5.0) < 3.5:
-                    # Runner is deeply disregarded by the betting market (>= $33.00) with poor recent form;
-                    # elevate market prior to prevent old, stale PBs from creating false value
-                    runner_w_mkt = max(runner_w_mkt, 0.60)
-                elif p_mkt <= 0.05 and sr.get("form_score", 5.0) < 3.2:
-                    runner_w_mkt = max(runner_w_mkt, 0.50)
-                elif p_mkt <= 0.07 and sr.get("form_score", 5.0) >= 4.5:
-                    # Runner is a market roughie (>= $14.00) with paper form from weaker tracks;
-                    # elevate market prior to anchor expectations
-                    runner_w_mkt = max(runner_w_mkt, 0.42)
+                sr_starts = sr.get("starts_count", 0)
+                sr_cstarts = sr.get("career_starts", 0)
+                sr_st_starts = sr.get("straight_starts", 0)
+                sr_cap_starts = sr.get("capalaba_starts", 0)
+                is_debutant = (sr_starts == 0 or sr_cstarts == 0)
+
+                # Straight Track & Maiden Market Adjustments:
+                if is_straight and is_restricted_or_maiden:
+                    if is_debutant:
+                        # Cap debutant market prior: don't let trial/stable hype override high rookie straight variance
+                        runner_w_mkt = min(runner_w_mkt, 0.30)
+                    elif sr_st_starts >= 2 or sr_cap_starts >= 1 or sr_cstarts >= 3:
+                        # Exposed maidens with straight experience: protect their racecraft from market outlier crush
+                        runner_w_mkt = min(runner_w_mkt, 0.28)
+                else:
+                    # General Adaptive runner-level market weighting:
+                    if p_mkt >= 0.30:
+                        runner_w_mkt = max(runner_w_mkt, 0.48)
+                    elif (sr.get("best_time") is None or sr.get("is_synthesized_pb") or sr.get("split_1") == avg_race_split) and p_mkt >= 0.18:
+                        runner_w_mkt = max(runner_w_mkt, 0.45)
+                    elif p_mkt <= 0.03 and sr.get("form_score", 5.0) < 3.5:
+                        runner_w_mkt = max(runner_w_mkt, 0.60)
+                    elif p_mkt <= 0.05 and sr.get("form_score", 5.0) < 3.2:
+                        runner_w_mkt = max(runner_w_mkt, 0.50)
+                    elif p_mkt <= 0.07 and sr.get("form_score", 5.0) >= 4.5:
+                        runner_w_mkt = max(runner_w_mkt, 0.42)
                 runner_w_model = 1.0 - runner_w_mkt
                 blended_win_probs.append((p_model * runner_w_model) + (p_mkt * runner_w_mkt))
 
@@ -2584,7 +2620,9 @@ class GreyhoundAnalytics:
                 "dsls": sr.get("dsls"),
                 "last_weight": sr.get("last_weight"),
                 "starts_count": sr.get("starts_count", 0),
-                "career_starts": sr.get("career_starts", 0)
+                "career_starts": sr.get("career_starts", 0),
+                "straight_starts": sr.get("straight_starts", 0),
+                "capalaba_starts": sr.get("capalaba_starts", 0)
             })
 
         sorted_results = sorted(results, key=lambda x: x["model_win_prob"], reverse=True)
@@ -2695,6 +2733,19 @@ class GreyhoundAnalytics:
             if recent_places >= 2:
                 score += 10.0
                 reasons.append(f"Recent Placings ({form})")
+
+            # 7. Straight Track & Maiden Racecraft (0 - 21 pts)
+            is_straight_trk = any(st in track_upper for st in ["STRAIGHT", "CAPALABA", "HEALESVILLE"])
+            st_starts = r.get("straight_starts", 0)
+            c_starts = r.get("career_starts", 0)
+            if is_straight_trk and (st_starts >= 2 or c_starts >= 3):
+                score += 16.0
+                reasons.append("Proven Straight Racecraft")
+                if "CAPALABA" in track_upper:
+                    score += 5.0
+                    reasons.append("Grass Turf Experience")
+            elif is_straight_trk and c_starts == 0:
+                score -= 10.0
 
             scored_candidates.append({
                 "runner": r,
