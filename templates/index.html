@@ -408,7 +408,7 @@
                         <i id="th-sort-odds" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
                       </div>
                     </th>
-                    <th class="text-right text-amber-400">SB Place</th>
+                    <th id="th-col-sb-place" class="text-right text-amber-400">SB Place</th>
                     <th class="text-right text-purple-400" title="TheDogs Official Starting Price (SP) / Fixed Odds">TheDogs SP</th>
                     <th id="th-col-edge" onclick="setRunnerSort('edge')" class="text-right text-accent-green cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Sportsbet Edge">
                       <div class="flex items-center justify-end space-x-1">
@@ -1601,7 +1601,8 @@ ${finishBadge}
         document.getElementById('race-badge-track').textContent = data.race.track.toUpperCase();
         document.getElementById('race-title').textContent = `${data.race.track} Race ${data.race.race_number} (${data.race.race_name || ''})`;
         const tipsText = data.race.expert_tips && data.race.expert_tips.length ? ` · Expert Tips: [${data.race.expert_tips.join(', ')}]` : '';
-        document.getElementById('race-subtitle').textContent = `${data.race.distance ? data.race.distance + 'm' : ''} · ${data.race.grade || ''} · Jump Time: ${formattedJump}${tipsText}`;
+        const placeTermsBadge = data.place_terms_label ? ` · <span class="${data.no_third_place_dividend ? 'text-amber-400 font-bold' : 'text-slate-400'}">${data.place_terms_label}</span>` : '';
+        document.getElementById('race-subtitle').innerHTML = `${data.race.distance ? data.race.distance + 'm' : ''} · ${data.race.grade || ''} · Jump Time: ${formattedJump}${tipsText}${placeTermsBadge}`;
 
         // Weather Pill
         const wPill = document.getElementById('weather-pill');
@@ -1730,6 +1731,16 @@ ${finishBadge}
 
         // Predictions Table
         document.getElementById('analysis-table-card').classList.remove('hidden');
+        const thSbPlace = document.getElementById('th-col-sb-place');
+        if (thSbPlace) {
+          if (data.no_third_place_dividend) {
+            thSbPlace.innerHTML = `<span title="Paying 2 Places Only: 1st & 2nd finishers. 3rd place pays NO dividend under Australian TAB rules for fields with 5-7 runners.">SB Place (Top 2)</span>`;
+            thSbPlace.classList.add('text-amber-300');
+          } else {
+            thSbPlace.innerHTML = `<span>SB Place</span>`;
+            thSbPlace.classList.remove('text-amber-300');
+          }
+        }
         const tbody = document.getElementById('runners-tbody');
         if (!data.predictions || data.predictions.length === 0) {
           tbody.innerHTML = '<tr><td colspan="10" class="p-8 text-center text-slate-500">No runner data available for this race.</td></tr>';
@@ -1767,8 +1778,8 @@ ${finishBadge}
       const card = document.getElementById('first4-estimator-card');
       if (!card) return;
 
-      const hasTri = triEst && triEst.selected_boxes && triEst.selected_boxes.length >= 3;
-      const hasF4 = f4Est && f4Est.selected_boxes && f4Est.selected_boxes.length >= 4;
+      const hasTri = !!triEst && (triEst.selected_boxes?.length >= 3 || triEst.is_available === false);
+      const hasF4 = !!f4Est && (f4Est.selected_boxes?.length >= 4 || f4Est.is_available === false);
 
       if (!hasTri && !hasF4) {
         card.classList.add('hidden');
@@ -1776,12 +1787,17 @@ ${finishBadge}
       }
       card.classList.remove('hidden');
 
-      // Update tab styles
+      // Update tab styles and availability labels
       const triTab = document.getElementById('exotic-tab-tri');
       const f4Tab = document.getElementById('exotic-tab-f4');
       const bothTab = document.getElementById('exotic-tab-both');
 
       if (triTab && f4Tab && bothTab) {
+        const triNA = triEst && triEst.is_available === false ? ' <span class="text-[9px] bg-rose-900/80 text-rose-300 px-1 py-0.2 rounded font-mono ml-1">N/A</span>' : '';
+        const f4NA = f4Est && f4Est.is_available === false ? ' <span class="text-[9px] bg-rose-900/80 text-rose-300 px-1 py-0.2 rounded font-mono ml-1">N/A</span>' : '';
+        triTab.innerHTML = `<i class="fa-solid fa-bullseye text-[10px]"></i><span>4-Dog Trifecta (5%)</span>${triNA}`;
+        f4Tab.innerHTML = `<i class="fa-solid fa-layer-group text-purple-400 text-[10px]"></i><span>5-Dog First 4 (5%)</span>${f4NA}`;
+
         [triTab, f4Tab, bothTab].forEach(btn => {
           btn.className = 'px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 text-slate-300 hover:text-white';
         });
@@ -1794,16 +1810,37 @@ ${finishBadge}
         }
       }
 
-      // Verdict Container
+      // Verdict Container & 2-Places Paid Badge
       const activeEst = currentExoticTab === 'trifecta' ? (triEst || f4Est) : (f4Est || triEst);
-      const isPos = activeEst && activeEst.is_positive_ev;
-      const verdictColor = isPos ? 'from-emerald-600/30 to-teal-600/30 text-emerald-300 border-emerald-500/50' : 'from-amber-600/30 to-orange-600/30 text-amber-300 border-amber-500/50';
-      const verdictIcon = isPos ? 'fa-check-circle' : 'fa-triangle-exclamation';
+      const isAvailable = activeEst && activeEst.is_available !== false;
+      const isPos = isAvailable && activeEst.is_positive_ev;
+      const isFullField = isAvailable && activeEst.is_full_field_coverage;
+
+      let verdictColor = 'from-emerald-600/30 to-teal-600/30 text-emerald-300 border-emerald-500/50';
+      let verdictIcon = 'fa-check-circle';
+      if (!isAvailable) {
+        verdictColor = 'from-rose-900/40 to-red-900/40 text-rose-300 border-rose-600/50';
+        verdictIcon = 'fa-ban';
+      } else if (isFullField) {
+        verdictColor = 'from-rose-600/30 to-amber-600/30 text-amber-300 border-amber-500/50';
+        verdictIcon = 'fa-triangle-exclamation';
+      } else if (!isPos) {
+        verdictColor = 'from-amber-600/30 to-orange-600/30 text-amber-300 border-amber-500/50';
+        verdictIcon = 'fa-triangle-exclamation';
+      }
       const verdictLabel = activeEst ? (activeEst.verdict || '+EV VERIFIED') : '+EV VERIFIED';
+
+      const placeTermsBadge = (activeEst && activeEst.no_third_place_dividend) ? `
+        <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50 shadow-sm flex items-center space-x-1" title="${activeEst.place_terms_note || 'Paying 2 Places: 3rd place pays NO dividend under Australian TAB rules'}">
+          <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+          <span>${activeEst.places_paid === 1 ? 'WIN ONLY (NO PLACE DIV)' : 'PAYING 2 PLACES (NO 3RD DIV)'}</span>
+        </span>
+      ` : '';
 
       const verdictEl = document.getElementById('f4-verdict-container');
       if (verdictEl) {
         verdictEl.innerHTML = `
+          ${placeTermsBadge}
           <span class="px-2.5 py-1 rounded text-[11px] font-mono font-bold bg-gradient-to-r ${verdictColor} border shadow-sm flex items-center space-x-1.5">
             <i class="fa-solid ${verdictIcon}"></i>
             <span>${verdictLabel}</span>
@@ -1840,6 +1877,31 @@ ${finishBadge}
       const isTri = type === 'trifecta';
       const typeLabel = isTri ? '4-Dog Boxed Trifecta' : '5-Dog Boxed First 4';
       const typeSub = isTri ? '24 Combos • Top 4 Contenders' : '120 Combos • Top 4 Contenders + 5th Roughie';
+
+      // Check if exotic pool is not offered due to Australian TAB rules
+      if (est.is_available === false) {
+        return `
+          <div class="bg-gradient-to-b from-[#181318] to-[#121922] border border-amber-700/60 rounded-xl p-6 text-center my-2 shadow-lg">
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-950/90 text-amber-400 mb-3 border border-amber-500/50 shadow">
+              <i class="fa-solid fa-ban text-xl"></i>
+            </div>
+            <h4 class="text-sm font-bold text-white mb-1 uppercase tracking-wide">${typeLabel} Not Offered by TAB</h4>
+            <p class="text-xs text-amber-200/90 max-w-md mx-auto mb-2 font-medium leading-relaxed">
+              ${est.unavailable_reason || est.verdict_note || `TAB & bookmaker rules require a minimum of ${isTri ? 4 : 5} active runners.`}
+            </p>
+            <div class="text-[11px] text-slate-400 max-w-md mx-auto mb-4">
+              Fields with fewer than ${isTri ? 4 : 5} active runners have ${typeLabel} pools abandoned by Australian wagering operators.
+            </div>
+            ${!isTri ? `
+              <button onclick="switchExoticTab('trifecta')" class="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-black px-4 py-2 rounded-lg font-bold text-xs shadow transition">
+                <i class="fa-solid fa-bullseye"></i>
+                <span>Switch to 4-Dog Boxed Trifecta ($1.20)</span>
+              </button>
+            ` : ''}
+          </div>
+        `;
+      }
+
       const boxesBadges = (est.selected_boxes || []).map(b => `<span class="inline-flex items-center justify-center w-6 h-6 rounded font-bold text-xs badge-box-${b}">${b}</span>`).join(' ');
 
       // Stakes buttons:
@@ -1874,6 +1936,47 @@ ${finishBadge}
         return `<button onclick="${updateFn}(${raceId}, ${b.stake})" class="px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition ${btnCls}">${b.label}</button>`;
       }).join(' ');
 
+      // Takeout Warning or Small Field Advisory
+      let takeoutWarningHtml = '';
+      if (est.is_full_field_coverage) {
+        takeoutWarningHtml = `
+          <div class="bg-gradient-to-r from-amber-950/80 via-rose-950/70 to-amber-950/80 border border-amber-500/70 p-3.5 rounded-lg mb-4 text-xs flex items-start space-x-3 shadow-lg">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-base mt-0.5 flex-shrink-0"></i>
+            <div class="text-slate-200 flex-1">
+              <div class="font-bold text-amber-300 flex items-center space-x-2 flex-wrap">
+                <span>100% Field Coverage Takeout Drag Alert</span>
+                <span class="text-[10px] bg-amber-900/90 text-amber-200 px-1.5 py-0.2 rounded font-mono border border-amber-600/50">${est.combinations_count} of ${est.total_race_permutations || est.combinations_count} Combos (100% of Race)</span>
+                <span class="text-[10px] bg-rose-900/80 text-rose-200 px-1.5 py-0.2 rounded font-mono border border-rose-700/50">Guaranteed -${isTri ? '21' : '22'}% EV</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                In a ${est.active_runners_count}-runner field (${est.place_terms_note || 'No 3rd Place Dividend'}), boxing all ${est.selected_boxes ? est.selected_boxes.length : (isTri ? 4 : 5)} dogs guarantees hitting the winning combination, but TAB's ${isTri ? '21' : '22'}% pool takeout guarantees an average net loss on turnover (projected ROI ${est.projected_roi_pct}%).
+              </p>
+              ${!isTri ? `
+                <div class="mt-2 text-[11px] text-emerald-300 font-semibold flex items-center space-x-1.5">
+                  <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                  <span>Recommended Value Play: Leave out the lowest-rated runner and play a <b>4-Dog Boxed First 4 (24 combos @ $1.20)</b> to target overlays without paying full takeout drag.</span>
+                </div>
+              ` : `
+                <div class="mt-2 text-[11px] text-emerald-300 font-semibold flex items-center space-x-1.5">
+                  <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                  <span>Recommended Value Play: Anchor the #1 model selection in 1st position or box the top 3 contenders.</span>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      } else if (est.no_third_place_dividend) {
+        takeoutWarningHtml = `
+          <div class="bg-navy-900/80 border border-amber-600/40 px-3 py-2 rounded-lg mb-3 text-xs flex items-center justify-between text-slate-300">
+            <div class="flex items-center space-x-2">
+              <i class="fa-solid fa-circle-info text-amber-400 text-xs"></i>
+              <span class="text-[11px] font-medium text-amber-200/90">Field Size: ${est.active_runners_count} Active Runners • <b class="text-amber-300">Paying 2 Places (No 3rd Place Dividend)</b></span>
+            </div>
+            <span class="text-[10px] font-mono text-slate-400">Race Permutations: ${est.combinations_count}/${est.total_race_permutations} (${est.field_coverage_pct}%)</span>
+          </div>
+        `;
+      }
+
       return `
         <!-- Top Row: Selected Dogs & Quick Stakes -->
         <div class="flex flex-wrap items-center justify-between gap-3 bg-[#0e141b] p-3 rounded-lg border border-navy-500 mb-4">
@@ -1891,6 +1994,8 @@ ${finishBadge}
             </div>
           </div>
         </div>
+
+        ${takeoutWarningHtml}
 
         <!-- Main 4-Column Stat Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-4">
@@ -1929,9 +2034,15 @@ ${finishBadge}
               <i class="fa-solid fa-scale-balanced text-teal-400"></i>
             </div>
             <div class="font-mono text-xl font-black text-teal-300 mb-1">$${Number(est.break_even_dividend || (isTri ? 24 : 120)).toFixed(2)}</div>
-            <div class="text-[11px] font-mono text-slate-300 pt-1.5 border-t border-navy-600 flex justify-between" title="${est.profitable_combinations_pct}% of the ${est.combinations_count || (isTri ? 24 : 120)} permutations return more than your $${est.stake} stake">
-              <span>Profitable Combos:</span>
-              <span class="font-bold text-teal-300">${est.profitable_combinations_pct || 90}% of combos</span>
+            <div class="text-[11px] font-mono text-slate-300 pt-1.5 border-t border-navy-600 space-y-1">
+              <div class="flex justify-between" title="Your ticket combinations vs total possible permutations in this race">
+                <span>Race Coverage:</span>
+                <span class="font-bold text-teal-300">${est.combinations_count}/${est.total_race_permutations || (isTri ? 24 : 120)} (${est.field_coverage_pct || 100}%)</span>
+              </div>
+              <div class="flex justify-between" title="${est.profitable_combinations_pct}% of the ${est.combinations_count || (isTri ? 24 : 120)} permutations return more than your $${est.stake} stake">
+                <span>Profitable Combos:</span>
+                <span class="font-bold text-teal-300">${est.profitable_combinations_pct || 90}% of combos</span>
+              </div>
             </div>
           </div>
 

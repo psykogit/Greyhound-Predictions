@@ -180,6 +180,56 @@ class ExoticBetOptimizer:
         race_num = race_info["race_number"] if race_info else 0
         dist = race_info["distance"] if race_info else 0
 
+        n_active = len(preds)
+        places_paid = 3 if n_active >= 8 else (2 if n_active >= 5 else 1)
+        no_third_place_dividend = (places_paid < 3)
+        place_terms_label = f"Paying {places_paid} Places (No 3rd Place Dividend)" if no_third_place_dividend else "Paying 3 Places (Standard 8-Runner Field)"
+
+        # Australian TAB Rules: First 4 requires minimum 5 runners
+        if n_active < 5:
+            return {
+                "race_id": race_id,
+                "track_name": track,
+                "race_number": race_num,
+                "distance": dist,
+                "is_available": False,
+                "unavailable_reason": f"First 4 is abandoned / not offered by TAB on fields with fewer than 5 runners ({n_active} active runners).",
+                "active_runners_count": n_active,
+                "places_paid": places_paid,
+                "no_third_place_dividend": no_third_place_dividend,
+                "place_terms_note": "Win Only (No Place Dividends Paid)" if places_paid == 1 else "Paying 2 Places (No 3rd Place Dividend)",
+                "selected_boxes": [],
+                "selected_runners": [],
+                "combinations_count": 0,
+                "total_race_permutations": 0,
+                "field_coverage_pct": 0.0,
+                "is_full_field_coverage": False,
+                "stake": custom_stake,
+                "flexi_percent": 0.0,
+                "hit_probability": 0.0,
+                "hit_probability_pct": 0.0,
+                "break_even_dividend": 0.0,
+                "break_even_note": "First 4 betting is not available for this race.",
+                "est_min_dividend": 0.0,
+                "est_avg_dividend": 0.0,
+                "est_median_dividend": 0.0,
+                "est_max_dividend": 0.0,
+                "projected_min_payout": 0.0,
+                "projected_avg_payout": 0.0,
+                "projected_max_payout": 0.0,
+                "projected_net_profit": -custom_stake,
+                "projected_roi_pct": -100.0,
+                "expected_value": -custom_stake,
+                "is_positive_ev": False,
+                "profitable_combinations_pct": 0.0,
+                "verdict": "NOT OFFERED (FIELD < 5)",
+                "verdict_note": f"TAB rules require a minimum of 5 active runners for First 4 pools. Only {n_active} runners are active.",
+                "top_combinations_preview": [],
+                "summary": f"First 4 Not Available ({n_active} active runners; min 5 required by TAB)"
+            }
+
+        total_race_combos = math.perm(n_active, 4)
+
         # Auto-detect Top 4 + 5th Dog Value Roughie if not provided
         if not selected_boxes:
             top4_boxes = [p["box"] for p in preds[:4]]
@@ -206,6 +256,8 @@ class ExoticBetOptimizer:
         perms = list(itertools.permutations(selected_boxes, 4))
         flexi_ratio = custom_stake / max(1, combos)
         flexi_pct = round(flexi_ratio * 100.0, 2)
+        field_coverage_pct = round((combos / total_race_combos) * 100.0, 1)
+        is_full_field = (len(selected_boxes) == n_active)
 
         div_items = []
         tot_prob = 0.0
@@ -269,21 +321,43 @@ class ExoticBetOptimizer:
         ]
 
         # Recommendation verdict
-        if expected_value >= 5.0:
-            verdict = "STRONG VALUE (+EV)"
-            verdict_note = f"Highly attractive overlay. Model projects an expected net return of +${expected_value:.2f} on a ${custom_stake:.2f} ticket."
-        elif expected_value > 0.0:
-            verdict = "POSITIVE (+EV)"
-            verdict_note = f"Positive mathematical expectation. Projected return exceeds ${custom_stake:.2f} outlay."
+        if is_full_field:
+            verdict = "NEGATIVE EXPECTATION (100% COVERAGE)"
+            verdict_note = f"Small field ({n_active} runners - Paying 2 Places, No 3rd Place Dividend). Boxing all 5 runners covers 100% of combinations (120/120) with TAB 22% takeout guaranteeing an average net loss on turnover. Recommend playing a 4-Dog Boxed First 4 (24 combos @ $1.20) leaving out the lowest-rated runner."
+        elif no_third_place_dividend:
+            if expected_value >= 5.0:
+                verdict = "STRONG VALUE (+EV)"
+                verdict_note = f"Attractive overlay in {n_active}-runner field (Paying 2 Places, No 3rd Place Dividend). Ticket covers {combos}/{total_race_combos} combos ({field_coverage_pct}% of race) with expected net return of +${expected_value:.2f}."
+            elif expected_value > 0.0:
+                verdict = "POSITIVE (+EV)"
+                verdict_note = f"Positive expectation in {n_active}-runner field (Paying 2 Places, No 3rd Place Dividend). Ticket covers {field_coverage_pct}% of race."
+            else:
+                verdict = "MARGINAL / DEFENSIVE"
+                verdict_note = f"Compressed dividends in {n_active}-runner field (No 3rd Place Dividend). Ticket covers {field_coverage_pct}% of race."
         else:
-            verdict = "MARGINAL / DEFENSIVE"
-            verdict_note = f"Heavily dominated by low-paying favorites. Consider reducing stake or anchoring top pick."
+            if expected_value >= 5.0:
+                verdict = "STRONG VALUE (+EV)"
+                verdict_note = f"Highly attractive overlay. Model projects an expected net return of +${expected_value:.2f} on a ${custom_stake:.2f} ticket."
+            elif expected_value > 0.0:
+                verdict = "POSITIVE (+EV)"
+                verdict_note = f"Positive mathematical expectation. Projected return exceeds ${custom_stake:.2f} outlay."
+            else:
+                verdict = "MARGINAL / DEFENSIVE"
+                verdict_note = f"Heavily dominated by low-paying favorites. Consider reducing stake or anchoring top pick."
 
         return {
             "race_id": race_id,
             "track_name": track,
             "race_number": race_num,
             "distance": dist,
+            "is_available": True,
+            "active_runners_count": n_active,
+            "places_paid": places_paid,
+            "no_third_place_dividend": no_third_place_dividend,
+            "place_terms_note": place_terms_label,
+            "total_race_permutations": total_race_combos,
+            "field_coverage_pct": field_coverage_pct,
+            "is_full_field_coverage": is_full_field,
             "selected_boxes": selected_boxes,
             "selected_runners": [
                 {
@@ -348,6 +422,56 @@ class ExoticBetOptimizer:
         race_num = race_info["race_number"] if race_info else 0
         dist = race_info["distance"] if race_info else 0
 
+        n_active = len(preds)
+        places_paid = 3 if n_active >= 8 else (2 if n_active >= 5 else 1)
+        no_third_place_dividend = (places_paid < 3)
+        place_terms_label = f"Paying {places_paid} Places (No 3rd Place Dividend)" if no_third_place_dividend else "Paying 3 Places (Standard 8-Runner Field)"
+
+        # Australian TAB Rules: Trifecta requires minimum 4 runners
+        if n_active < 4:
+            return {
+                "race_id": race_id,
+                "track_name": track,
+                "race_number": race_num,
+                "distance": dist,
+                "is_available": False,
+                "unavailable_reason": f"Trifecta is abandoned / not offered by TAB on fields with fewer than 4 runners ({n_active} active runners).",
+                "active_runners_count": n_active,
+                "places_paid": places_paid,
+                "no_third_place_dividend": no_third_place_dividend,
+                "place_terms_note": "Win Only (No Place Dividends Paid)",
+                "selected_boxes": [],
+                "selected_runners": [],
+                "combinations_count": 0,
+                "total_race_permutations": 0,
+                "field_coverage_pct": 0.0,
+                "is_full_field_coverage": False,
+                "stake": custom_stake,
+                "flexi_percent": 0.0,
+                "hit_probability": 0.0,
+                "hit_probability_pct": 0.0,
+                "break_even_dividend": 0.0,
+                "break_even_note": "Trifecta betting is not available for this race.",
+                "est_min_dividend": 0.0,
+                "est_avg_dividend": 0.0,
+                "est_median_dividend": 0.0,
+                "est_max_dividend": 0.0,
+                "projected_min_payout": 0.0,
+                "projected_avg_payout": 0.0,
+                "projected_max_payout": 0.0,
+                "projected_net_profit": -custom_stake,
+                "projected_roi_pct": -100.0,
+                "expected_value": -custom_stake,
+                "is_positive_ev": False,
+                "profitable_combinations_pct": 0.0,
+                "verdict": "NOT OFFERED (FIELD < 4)",
+                "verdict_note": f"TAB rules require a minimum of 4 active runners for Trifecta pools. Only {n_active} runners are active.",
+                "top_combinations_preview": [],
+                "summary": f"Trifecta Not Available ({n_active} active runners; min 4 required by TAB)"
+            }
+
+        total_race_combos = math.perm(n_active, 3)
+
         # Auto-detect Top 4 contenders if not provided
         if not selected_boxes:
             if len(preds) >= 4:
@@ -370,6 +494,8 @@ class ExoticBetOptimizer:
         perms = list(itertools.permutations(selected_boxes, 3))
         flexi_ratio = custom_stake / max(1, combos)
         flexi_pct = round(flexi_ratio * 100.0, 2)
+        field_coverage_pct = round((combos / total_race_combos) * 100.0, 1)
+        is_full_field = (len(selected_boxes) == n_active)
 
         div_items = []
         tot_prob = 0.0
@@ -431,21 +557,43 @@ class ExoticBetOptimizer:
         ]
 
         # Recommendation verdict
-        if expected_value >= 2.0:
-            verdict = "STRONG VALUE (+EV)"
-            verdict_note = f"Highly attractive overlay. Model projects an expected net return of +${expected_value:.2f} on a ${custom_stake:.2f} ticket."
-        elif expected_value > 0.0:
-            verdict = "POSITIVE (+EV)"
-            verdict_note = f"Positive mathematical expectation. Projected return exceeds ${custom_stake:.2f} outlay."
+        if is_full_field:
+            verdict = "NEGATIVE EXPECTATION (100% COVERAGE)"
+            verdict_note = f"Small field ({n_active} runners - Win Only, No Place Dividends). Boxing all 4 runners covers 100% of combinations (24/24) with TAB 21% takeout guaranteeing an average net loss on turnover. Recommend anchoring the top pick or boxing Top 3."
+        elif no_third_place_dividend:
+            if expected_value >= 2.0:
+                verdict = "STRONG VALUE (+EV)"
+                verdict_note = f"Attractive overlay in {n_active}-runner field (Paying 2 Places, No 3rd Place Dividend). Ticket covers {combos}/{total_race_combos} combos ({field_coverage_pct}% of race) with expected net return of +${expected_value:.2f}."
+            elif expected_value > 0.0:
+                verdict = "POSITIVE (+EV)"
+                verdict_note = f"Positive expectation in {n_active}-runner field (Paying 2 Places, No 3rd Place Dividend). Ticket covers {field_coverage_pct}% of race."
+            else:
+                verdict = "MARGINAL / DEFENSIVE"
+                verdict_note = f"Compressed pool in {n_active}-runner field (No 3rd Place Dividend). Ticket covers {field_coverage_pct}% of race."
         else:
-            verdict = "MARGINAL / DEFENSIVE"
-            verdict_note = f"Dominated by low-paying favorites. Consider reducing stake or anchoring top pick."
+            if expected_value >= 2.0:
+                verdict = "STRONG VALUE (+EV)"
+                verdict_note = f"Highly attractive overlay. Model projects an expected net return of +${expected_value:.2f} on a ${custom_stake:.2f} ticket."
+            elif expected_value > 0.0:
+                verdict = "POSITIVE (+EV)"
+                verdict_note = f"Positive mathematical expectation. Projected return exceeds ${custom_stake:.2f} outlay."
+            else:
+                verdict = "MARGINAL / DEFENSIVE"
+                verdict_note = f"Dominated by low-paying favorites. Consider reducing stake or anchoring top pick."
 
         return {
             "race_id": race_id,
             "track_name": track,
             "race_number": race_num,
             "distance": dist,
+            "is_available": True,
+            "active_runners_count": n_active,
+            "places_paid": places_paid,
+            "no_third_place_dividend": no_third_place_dividend,
+            "place_terms_note": place_terms_label,
+            "total_race_permutations": total_race_combos,
+            "field_coverage_pct": field_coverage_pct,
+            "is_full_field_coverage": is_full_field,
             "selected_boxes": selected_boxes,
             "selected_runners": [
                 {

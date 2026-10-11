@@ -312,6 +312,10 @@ def get_race_analysis(race_id: int):
         "value_roughie": value_roughie,
         "top4_boxes": top4_boxes,
         "top5_boxed": top5_boxes,
+        "active_runners_count": len(predictions),
+        "places_paid": 3 if len(predictions) >= 8 else (2 if len(predictions) >= 5 else 1),
+        "no_third_place_dividend": len(predictions) < 8,
+        "place_terms_label": "Paying 2 Places (No 3rd Place Dividend)" if (5 <= len(predictions) <= 7) else ("Win Only (No Place Dividends)" if len(predictions) < 5 else "Paying 3 Places (Standard 8-Runner Field)"),
         "boxed_first4_estimate": f4_odds_estimate,
         "boxed_trifecta_estimate": tri_odds_estimate
     }

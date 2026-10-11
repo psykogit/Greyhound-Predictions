@@ -2585,9 +2585,15 @@ class GreyhoundAnalytics:
             raw_place_scores.append(score_p)
             raw_top4_scores.append(score_t4)
 
-        # Normalize so expected number of placers is min(3.0, n_runners) and top-4 is min(4.0, n_runners)
+        # Australian racing place dividend rules:
+        # 8+ runners: 3 places paid (1st, 2nd, 3rd)
+        # 5-7 runners: 2 places paid (1st, 2nd only; NO dividend for 3rd place)
+        # 1-4 runners: Win only (1 place; no place dividends paid)
+        places_paid = 3 if n_runners >= 8 else (2 if n_runners >= 5 else 1)
+        no_third_place_dividend = (places_paid < 3)
+
         sum_raw_place = sum(raw_place_scores)
-        target_place_sum = min(3.0, float(n_runners))
+        target_place_sum = float(places_paid)
         scale_place = target_place_sum / sum_raw_place if sum_raw_place > 0 else 1.0
         final_place_probs = [min(0.95, max(0.04, round(s * scale_place, 4))) for s in raw_place_scores]
 
@@ -2672,7 +2678,10 @@ class GreyhoundAnalytics:
                 "starts_count": sr.get("starts_count", 0),
                 "career_starts": sr.get("career_starts", 0),
                 "straight_starts": sr.get("straight_starts", 0),
-                "capalaba_starts": sr.get("capalaba_starts", 0)
+                "capalaba_starts": sr.get("capalaba_starts", 0),
+                "places_paid": places_paid,
+                "no_third_place_dividend": no_third_place_dividend,
+                "place_terms": f"Paying {places_paid} Places (No 3rd Place Dividend)" if no_third_place_dividend else "Paying 3 Places"
             })
 
         sorted_results = sorted(results, key=lambda x: x["model_win_prob"], reverse=True)
