@@ -2586,6 +2586,14 @@ class GreyhoundAnalytics:
 
             exp_rank = expert_tips_list.index(sr["box"]) + 1 if sr["box"] in expert_tips_list else None
 
+            # Calculate Hype % (Market Implied Win Probability %)
+            # Derived from Sportsbet fixed odds (or TheDogs SP / market odds)
+            hype_score = None
+            if sb_odds and sb_odds > 1.0:
+                hype_score = round((1.0 / sb_odds) * 100.0, 1)
+            elif sr.get("market_odds") and sr["market_odds"] > 1.0:
+                hype_score = round((1.0 / sr["market_odds"]) * 100.0, 1)
+
             results.append({
                 "box": sr["box"],
                 "dog_id": sr.get("dog_id"),
@@ -2594,8 +2602,13 @@ class GreyhoundAnalytics:
                 "running_style": sr.get("running_style", ""),
                 "form_string": sr["form_string"],
                 "market_odds": sr["market_odds"],
+                "sp_odds": sr["market_odds"],
                 "sportsbet_odds": sb_odds,
                 "sportsbet_place_odds": sb_place,
+                "hype_score": hype_score,
+                "finish_position": sr.get("finish_position"),
+                "margin": sr.get("margin"),
+                "race_time": sr.get("race_time"),
                 "best_odds": best_market_odds,
                 "box_affinity": round(sr.get("box_affinity", 1.0), 2),
                 "trainer_factor": sr.get("trainer_factor", 1.0),

@@ -336,17 +336,17 @@
                     <th class="w-12 text-center">#</th>
                     <th>Greyhound</th>
                     <th>Trainer</th>
-                    <th class="text-right text-pink-400">Hype %</th>
-<th class="text-right">Model Win%</th>
+                    <th class="text-right text-pink-400" title="Market Implied Win Probability % (1 / Odds)">Hype %</th>
+                    <th class="text-right">Model Win%</th>
                     <th class="text-right">Fair Odds</th>
                     <th class="text-right text-amber-400">Sportsbet Win</th>
                     <th class="text-right text-amber-400">SB Place</th>
-                    <th class="text-right text-purple-400">TheDogs SP</th>
+                    <th class="text-right text-purple-400" title="TheDogs Official Starting Price (SP) / Fixed Odds">TheDogs SP</th>
                     <th class="text-right text-accent-green">SB Edge</th>
                   </tr>
                 </thead>
                 <tbody id="runners-tbody" class="bg-navy-600 divide-y divide-navy-500">
-                  <tr><td colspan="9" class="text-center text-slate-500 py-6 text-xs italic">Select a race from the sidebar to view predictive analytics</td></tr>
+                  <tr><td colspan="10" class="text-center text-slate-500 py-6 text-xs italic">Select a race from the sidebar to view predictive analytics</td></tr>
                 </tbody>
               </table>
             </div>
@@ -999,7 +999,28 @@ let currentRaceId = null;
 
       const sbWinStr = p.sportsbet_odds ? `$${Number(p.sportsbet_odds).toFixed(2)}` : '-';
       const sbPlaceStr = p.sportsbet_place_odds ? `$${Number(p.sportsbet_place_odds).toFixed(2)}` : '-';
-      const spStr = p.market_odds ? `$${Number(p.market_odds).toFixed(2)}` : '-';
+      
+      // TheDogs SP or live market odds
+      const theDogsPrice = (p.sp_odds !== undefined && p.sp_odds !== null) ? p.sp_odds : p.market_odds;
+      let spStr;
+      if (theDogsPrice && Number(theDogsPrice) > 1.0) {
+        spStr = `$${Number(theDogsPrice).toFixed(2)}`;
+      } else if (p.finish_position !== null && p.finish_position !== undefined) {
+        spStr = '-';
+      } else {
+        spStr = '<span class="text-[10px] text-slate-500 italic" title="Official Starting Price recorded at jump time">Pre-Jump</span>';
+      }
+
+      // Hype %: Market Implied Win Probability % (1 / Odds * 100)
+      let hypeVal = null;
+      if (p.hype_score !== undefined && p.hype_score !== null) {
+        hypeVal = p.hype_score;
+      } else if (p.sportsbet_odds && Number(p.sportsbet_odds) > 1.0) {
+        hypeVal = ((1.0 / Number(p.sportsbet_odds)) * 100).toFixed(1);
+      } else if (theDogsPrice && Number(theDogsPrice) > 1.0) {
+        hypeVal = ((1.0 / Number(theDogsPrice)) * 100).toFixed(1);
+      }
+      const hypeStr = hypeVal !== null ? `${hypeVal}%` : '-';
 
       let highlightPlace = false;
       if (arr && arr.length > 0 && p.sportsbet_place_odds && p.sportsbet_place_odds > 2.20) {
@@ -1035,7 +1056,7 @@ ${finishBadge}
             </div>
           </td>
           <td class="p-3 text-slate-400 truncate max-w-[130px]">${p.trainer || '-'}</td>
-          <td class="p-3 text-right font-mono font-bold text-pink-400">${p.hype_score ? p.hype_score + '%' : '-'}</td>
+          <td class="p-3 text-right font-mono font-bold text-pink-400" title="Market Implied Probability">${hypeStr}</td>
 <td class="p-3 text-right font-mono font-bold text-white">${(p.model_win_prob * 100).toFixed(1)}%</td>
           <td class="p-3 text-right font-mono text-cyan-400 font-semibold">$${p.fair_win_odds.toFixed(2)}</td>
           <td class="p-3 text-right font-mono font-bold text-yellow-300 ${p.sportsbet_odds ? 'bg-yellow-950/30 px-2 rounded border border-yellow-700/40' : ''}">${sbWinStr}</td>
