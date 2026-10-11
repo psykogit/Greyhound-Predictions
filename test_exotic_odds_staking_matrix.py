@@ -128,3 +128,129 @@ def test_api_race_analysis_includes_place_terms_metadata():
     assert data11["places_paid"] == 1
     assert data11["boxed_first4_estimate"]["is_available"] is False
     assert data11["boxed_trifecta_estimate"]["is_available"] is True
+
+
+def test_first4_combinatorial_selective_boxing():
+    opt = ExoticBetOptimizer()
+    race_id = 1632
+
+    # 1. Boxed (120 combos)
+    f4_box = opt.estimate_boxed_first4_odds(race_id, ticket_structure="boxed")
+    assert f4_box["combinations_count"] == 120
+    assert abs(f4_box["flexi_percent"] - 5.0) < 0.05
+    assert f4_box["flexi_multiplier"] == 1.0
+
+    # 2. Standout Anchor (Key 1st -> 24 combos, 25% flexi = 5x payout boost)
+    f4_std = opt.estimate_boxed_first4_odds(race_id, ticket_structure="standout")
+    assert f4_std["combinations_count"] == 24
+    assert abs(f4_std["flexi_percent"] - 25.0) < 0.05
+    assert f4_std["flexi_multiplier"] == 5.0
+    assert "Standout Anchor" in f4_std["structure_label"]
+    assert f4_std["anchor_box"] is not None
+
+    # 3. Dual Banker (1st & 2nd -> 12 combos, 50% flexi = 10x payout boost)
+    f4_dual = opt.estimate_boxed_first4_odds(race_id, ticket_structure="dual_banker")
+    assert f4_dual["combinations_count"] == 12
+    assert abs(f4_dual["flexi_percent"] - 50.0) < 0.05
+    assert f4_dual["flexi_multiplier"] == 10.0
+    assert "Dual Banker" in f4_dual["structure_label"]
+
+    # 4. Roving Banker (96 combos, 6.25% flexi)
+    f4_rov = opt.estimate_boxed_first4_odds(race_id, ticket_structure="roving_banker")
+    assert f4_rov["combinations_count"] == 96
+    assert abs(f4_rov["flexi_percent"] - 6.25) < 0.05
+
+    # Check available_structures metadata
+    assert len(f4_std["available_structures"]) == 4
+    struct_names = [s["structure"] for s in f4_std["available_structures"]]
+    assert "boxed" in struct_names
+    assert "standout" in struct_names
+    assert "dual_banker" in struct_names
+    assert "roving_banker" in struct_names
+
+
+def test_trifecta_combinatorial_selective_boxing():
+    opt = ExoticBetOptimizer()
+    race_id = 1632
+
+    # 1. Boxed (24 combos, 5% flexi)
+    tri_box = opt.estimate_boxed_trifecta_odds(race_id, ticket_structure="boxed")
+    assert tri_box["combinations_count"] == 24
+    assert abs(tri_box["flexi_percent"] - 5.0) < 0.05
+    assert tri_box["flexi_multiplier"] == 1.0
+
+    # 2. Standout Anchor (6 combos, 20% flexi = 4x payout boost)
+    tri_std = opt.estimate_boxed_trifecta_odds(race_id, ticket_structure="standout")
+    assert tri_std["combinations_count"] == 6
+    assert abs(tri_std["flexi_percent"] - 20.0) < 0.05
+    assert tri_std["flexi_multiplier"] == 4.0
+    assert "Standout Anchor" in tri_std["structure_label"]
+
+    # 3. Dual Banker (4 combos, 30% flexi = 6x payout boost)
+    tri_dual = opt.estimate_boxed_trifecta_odds(race_id, ticket_structure="dual_banker")
+    assert tri_dual["combinations_count"] == 4
+    assert abs(tri_dual["flexi_percent"] - 30.0) < 0.05
+    assert tri_dual["flexi_multiplier"] == 6.0
+
+    # 4. Roving Banker (18 combos, 6.67% flexi)
+    tri_rov = opt.estimate_boxed_trifecta_odds(race_id, ticket_structure="roving_banker")
+    assert tri_rov["combinations_count"] == 18
+    assert abs(tri_rov["flexi_percent"] - 6.67) < 0.05
+
+
+def test_track_calibration_engine():
+    from track_calibration_engine import TrackCalibrationEngine
+    engine = TrackCalibrationEngine()
+
+    # Verify Grafton sprint calibration from historical finishes
+    calib = engine.get_track_calibration("Grafton", 350)
+    assert calib is not None
+    assert calib["track_name"] == "Grafton"
+    assert calib["distance_band"] == "sprint"
+    assert calib["sample_starts"] > 0
+    assert 0.20 <= calib["rail_bias_index"] <= 4.0
+    assert 0.88 <= calib["speed_weight_factor"] <= 1.18
+    assert len(calib["box_multipliers"]) == 8
+    # Inside boxes should have realistic Bayesian multipliers
+    for b in range(1, 9):
+        assert 0.75 <= calib["box_multipliers"][b] <= 1.40
+
+    # Verify calibration summary queries
+    summary = engine.get_calibration_summary()
+    assert len(summary) > 0
+    assert summary[0]["sample_starts"] >= summary[-1]["sample_starts"]
+
+
+def test_api_selective_boxing_and_track_calibration():
+    client = TestClient(app)
+
+    # 1. First 4 with Standout
+    f4_res = client.get("/api/races/1632/estimate-first4?structure=standout")
+    assert f4_res.status_code == 200
+    f4_data = f4_res.json()
+    assert f4_data["ticket_structure"] == "standout"
+    assert f4_data["combinations_count"] == 24
+    assert f4_data["flexi_multiplier"] == 5.0
+
+    # 2. Trifecta with Dual Banker
+    tri_res = client.get("/api/races/1632/estimate-trifecta?structure=dual_banker")
+    assert tri_res.status_code == 200
+    tri_data = tri_res.json()
+    assert tri_data["ticket_structure"] == "dual_banker"
+    assert tri_data["combinations_count"] == 4
+    assert tri_data["flexi_multiplier"] == 6.0
+
+    # 3. Track Calibration Report Endpoint
+    t_res = client.get("/api/tracks/calibration-report")
+    assert t_res.status_code == 200
+    t_data = t_res.json()
+    assert "calibrations" in t_data
+    assert len(t_data["calibrations"]) > 0
+
+    # 4. Specific Track Calibration Endpoint
+    tg_res = client.get("/api/tracks/calibration-report?track=Grafton&distance=350")
+    assert tg_res.status_code == 200
+    tg_data = tg_res.json()
+    assert tg_data["track_name"] == "Grafton"
+    assert "rail_bias_index" in tg_data
+

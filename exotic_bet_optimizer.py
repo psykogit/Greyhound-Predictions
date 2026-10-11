@@ -151,17 +151,85 @@ class ExoticBetOptimizer:
             "summary": f"{n}-Dog Boxed {exotic_type.title()} ({combos} combos) @ {flexi_pct}% Flexi (${stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${projected_payout:.2f})"
         }
 
+    def _generate_exotic_permutations(
+        self,
+        exotic_type: str,  # "first4" or "trifecta"
+        selected_boxes: List[int],
+        ticket_structure: str = "boxed",
+        anchor_box: Optional[int] = None,
+        secondary_anchor: Optional[int] = None
+    ) -> Tuple[List[Tuple[int, ...]], int, str, str, int, Optional[int]]:
+        """
+        Generates exact permutations for the chosen exotic type and ticket structure.
+        Supported structures:
+        - 'boxed': Full box of all selected runners
+        - 'standout': Key runner locked in 1st position
+        - 'dual_banker': Top 2 key runners locked in 1st & 2nd (either order)
+        - 'roving_banker': Key runner must finish anywhere in the exotic podium
+        """
+        k = 4 if exotic_type == "first4" else 3
+        anchor = anchor_box if (anchor_box and anchor_box in selected_boxes) else selected_boxes[0]
+        sec_candidates = [b for b in selected_boxes if b != anchor]
+        sec_anchor = secondary_anchor if (secondary_anchor and secondary_anchor in sec_candidates) else (
+            sec_candidates[0] if sec_candidates else None
+        )
+        others = [b for b in selected_boxes if b != anchor]
+
+        if ticket_structure == "standout":
+            sub_k = k - 1
+            perms = [(anchor, *p) for p in itertools.permutations(others, sub_k)]
+            label = f"Standout Anchor (Box {anchor} Key 1st)"
+            desc = f"Box {anchor} is anchored in 1st; remaining {len(others)} runners contest 2nd to {k}th."
+
+        elif ticket_structure == "dual_banker":
+            if not sec_anchor or len(selected_boxes) < (3 if exotic_type == "trifecta" else 4):
+                return self._generate_exotic_permutations(exotic_type, selected_boxes, "standout", anchor)
+            others_dual = [b for b in selected_boxes if b not in (anchor, sec_anchor)]
+            sub_k = k - 2
+            perms = []
+            if sub_k == 0:
+                perms = [(anchor, sec_anchor), (sec_anchor, anchor)]
+            else:
+                for rem in itertools.permutations(others_dual, sub_k):
+                    perms.append((anchor, sec_anchor, *rem))
+                    perms.append((sec_anchor, anchor, *rem))
+            label = f"Dual Banker (Boxes {anchor} & {sec_anchor} 1st/2nd)"
+            desc = f"Boxes {anchor} and {sec_anchor} are anchored in 1st & 2nd; others contest remaining positions."
+
+        elif ticket_structure == "roving_banker":
+            sub_k = k - 1
+            perms = []
+            for pos in range(k):
+                for rem in itertools.permutations(others, sub_k):
+                    t = list(rem)
+                    t.insert(pos, anchor)
+                    perms.append(tuple(t))
+            label = f"Roving Banker (Box {anchor} Anywhere Top {k})"
+            desc = f"Box {anchor} must finish anywhere in the top {k} positions."
+
+        else:
+            ticket_structure = "boxed"
+            perms = list(itertools.permutations(selected_boxes, k))
+            label = f"{len(selected_boxes)}-Dog Boxed {'First 4' if k == 4 else 'Trifecta'}"
+            desc = f"Any permutation of the {len(selected_boxes)} selected runners in the top {k} positions."
+
+        return perms, len(perms), label, desc, anchor, sec_anchor
+
     def estimate_boxed_first4_odds(
         self,
         race_id: int,
         selected_boxes: Optional[List[int]] = None,
-        custom_stake: float = 6.0
+        custom_stake: float = 6.0,
+        ticket_structure: str = "boxed",
+        anchor_box: Optional[int] = None,
+        secondary_anchor: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Calculates precise projected TAB / Pari-Mutuel tote odds, dividend ranges,
-        break-even thresholds, and expected value for a 5-dog boxed First 4 ticket.
-        Defaults to 5% flexi stake ($6.00 on 120 combos).
-        Enables punters to verify whether their stake is mathematically positive (+EV).
+        break-even thresholds, and expected value for a 5-dog First 4 ticket.
+        Supports Combinatorial Selective Boxing: Boxed, Standout Anchor (Key 1st),
+        Dual Banker (1st & 2nd), and Roving Banker.
+        Defaults to $6.00 stake (5% flexi on 120 combos, or 25% flexi on 24 standout combos).
         """
         preds = self.analytics.predict_race_probabilities(race_id)
         if not preds:
@@ -198,6 +266,14 @@ class ExoticBetOptimizer:
                 "places_paid": places_paid,
                 "no_third_place_dividend": no_third_place_dividend,
                 "place_terms_note": "Win Only (No Place Dividends Paid)" if places_paid == 1 else "Paying 2 Places (No 3rd Place Dividend)",
+                "ticket_structure": ticket_structure,
+                "structure_label": "Not Offered",
+                "structure_description": "First 4 betting is unavailable.",
+                "anchor_box": None,
+                "secondary_anchor": None,
+                "recommended_structure": "none",
+                "recommendation_reason": "Field size below TAB minimum of 5 runners.",
+                "available_structures": [],
                 "selected_boxes": [],
                 "selected_runners": [],
                 "combinations_count": 0,
@@ -206,6 +282,7 @@ class ExoticBetOptimizer:
                 "is_full_field_coverage": False,
                 "stake": custom_stake,
                 "flexi_percent": 0.0,
+                "flexi_multiplier": 0.0,
                 "hit_probability": 0.0,
                 "hit_probability_pct": 0.0,
                 "break_even_dividend": 0.0,
@@ -252,12 +329,18 @@ class ExoticBetOptimizer:
         tot_mkt_p = sum(1.0 / max(1.01, market_odds.get(b, 10.0)) for b in market_odds)
         mkt_probs = {b: (1.0 / max(1.01, market_odds.get(b, 10.0))) / tot_mkt_p for b in market_odds}
 
-        combos = math.perm(len(selected_boxes), 4)
-        perms = list(itertools.permutations(selected_boxes, 4))
+        # Generate chosen combinatorial permutations
+        perms, combos, struct_label, struct_desc, actual_anchor, actual_sec = self._generate_exotic_permutations(
+            "first4", selected_boxes, ticket_structure, anchor_box, secondary_anchor
+        )
+
+        base_combos = math.perm(len(selected_boxes), 4)
+        base_flexi = round((custom_stake / max(1, base_combos)) * 100.0, 2)
         flexi_ratio = custom_stake / max(1, combos)
         flexi_pct = round(flexi_ratio * 100.0, 2)
+        flexi_multiplier = round(flexi_pct / max(0.1, base_flexi), 1)
         field_coverage_pct = round((combos / total_race_combos) * 100.0, 1)
-        is_full_field = (len(selected_boxes) == n_active)
+        is_full_field = (combos == total_race_combos)
 
         div_items = []
         tot_prob = 0.0
@@ -320,10 +403,59 @@ class ExoticBetOptimizer:
             for d in likely_sorted[:5]
         ]
 
+        # Determine recommended structure based on model probabilities
+        p1 = win_probs.get(selected_boxes[0], 0.0)
+        p2 = win_probs.get(selected_boxes[1], 0.0) if len(selected_boxes) > 1 else 0.0
+
+        if n_active == 5 and ticket_structure == "boxed":
+            recommended_structure = "standout"
+            recommendation_reason = f"5-runner field covers 100% in Boxed mode (-22% takeout drag). Standout 1st covers 24 combos @ 25% flexi (+400% payout boost)."
+        elif p1 >= 0.40 or (p1 - p2) >= 0.15:
+            recommended_structure = "standout"
+            recommendation_reason = f"Dominant favorite detected (Box {selected_boxes[0]} win prob {p1*100:.1f}%). Standout yields 25% flexi (5x payout boost) vs 5% boxed."
+        elif (p1 + p2) >= 0.65:
+            recommended_structure = "dual_banker"
+            recommendation_reason = f"Two dominant top dogs (Boxes {selected_boxes[0]} & {selected_boxes[1]}). Dual banker yields 50% flexi (10x payout boost)."
+        else:
+            recommended_structure = "boxed"
+            recommendation_reason = "Open competitive race. Standard boxed ticket offers maximum coverage."
+
+        # Available structure comparisons
+        struct_options = ["boxed", "standout", "dual_banker", "roving_banker"]
+        available_structures = []
+        for s_code in struct_options:
+            s_perms, s_combos, s_lbl, s_desc, _, _ = self._generate_exotic_permutations(
+                "first4", selected_boxes, s_code, anchor_box, secondary_anchor
+            )
+            s_flexi = round((custom_stake / max(1, s_combos)) * 100.0, 2)
+            s_mult = round(s_flexi / max(0.1, base_flexi), 1)
+            is_rec = (s_code == recommended_structure)
+            rec_badge = "⭐ Recommended" if is_rec else (f"{s_mult}x Flexi" if s_mult > 1.0 else "Base")
+            available_structures.append({
+                "structure": s_code,
+                "label": s_lbl,
+                "description": s_desc,
+                "combinations_count": s_combos,
+                "flexi_percent": s_flexi,
+                "flexi_multiplier": s_mult,
+                "is_recommended": is_rec,
+                "recommendation_badge": rec_badge
+            })
+
         # Recommendation verdict
         if is_full_field:
             verdict = "NEGATIVE EXPECTATION (100% COVERAGE)"
-            verdict_note = f"Small field ({n_active} runners - Paying 2 Places, No 3rd Place Dividend). Boxing all 5 runners covers 100% of combinations (120/120) with TAB 22% takeout guaranteeing an average net loss on turnover. Recommend playing a 4-Dog Boxed First 4 (24 combos @ $1.20) leaving out the lowest-rated runner."
+            verdict_note = f"Small field ({n_active} runners - Paying 2 Places, No 3rd Place Dividend). Boxing all 5 runners covers 100% of combinations (120/120) with TAB 22% takeout guaranteeing an average net loss on turnover. Recommend playing Standout Anchor (24 combos @ $1.20) or 4-dog box."
+        elif ticket_structure == "standout":
+            if expected_value >= 5.0:
+                verdict = "STRONG VALUE (+EV STANDOUT)"
+                verdict_note = f"High-yield Standout First 4 (Box {actual_anchor} Key 1st). Covers {combos} combos ({field_coverage_pct}% of race) at {flexi_pct}% flexi ({flexi_multiplier}x dividend multiplier) with projected net return +${expected_value:.2f}."
+            elif expected_value > 0.0:
+                verdict = "POSITIVE (+EV STANDOUT)"
+                verdict_note = f"Positive expectation Standout First 4 (Box {actual_anchor} Key 1st). Yields {flexi_pct}% flexi ({flexi_multiplier}x multiplier)."
+            else:
+                verdict = "MARGINAL STANDOUT"
+                verdict_note = f"Standout First 4 on Box {actual_anchor}. Projected return ${proj_avg_payout:.2f} on ${custom_stake:.2f} outlay."
         elif no_third_place_dividend:
             if expected_value >= 5.0:
                 verdict = "STRONG VALUE (+EV)"
@@ -355,6 +487,14 @@ class ExoticBetOptimizer:
             "places_paid": places_paid,
             "no_third_place_dividend": no_third_place_dividend,
             "place_terms_note": place_terms_label,
+            "ticket_structure": ticket_structure,
+            "structure_label": struct_label,
+            "structure_description": struct_desc,
+            "anchor_box": actual_anchor,
+            "secondary_anchor": actual_sec,
+            "recommended_structure": recommended_structure,
+            "recommendation_reason": recommendation_reason,
+            "available_structures": available_structures,
             "total_race_permutations": total_race_combos,
             "field_coverage_pct": field_coverage_pct,
             "is_full_field_coverage": is_full_field,
@@ -364,13 +504,16 @@ class ExoticBetOptimizer:
                     "box": b,
                     "name": runner_names.get(b, f"Box {b}"),
                     "odds": market_odds.get(b, 0.0),
-                    "win_prob_pct": round(win_probs.get(b, 0.0) * 100.0, 1)
+                    "win_prob_pct": round(win_probs.get(b, 0.0) * 100.0, 1),
+                    "is_anchor": (b == actual_anchor),
+                    "is_secondary_anchor": (b == actual_sec)
                 }
                 for b in selected_boxes
             ],
             "combinations_count": combos,
             "stake": custom_stake,
             "flexi_percent": flexi_pct,
+            "flexi_multiplier": flexi_multiplier,
             "hit_probability": round(tot_prob, 4),
             "hit_probability_pct": round(tot_prob * 100.0, 1),
             "break_even_dividend": break_even_div,
@@ -390,19 +533,24 @@ class ExoticBetOptimizer:
             "verdict": verdict,
             "verdict_note": verdict_note,
             "top_combinations_preview": top5_preview,
-            "summary": f"5-Dog Boxed First 4 ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
+            "summary": f"{struct_label} ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
         }
 
     def estimate_boxed_trifecta_odds(
         self,
         race_id: int,
         selected_boxes: Optional[List[int]] = None,
-        custom_stake: float = 1.20
+        custom_stake: float = 1.20,
+        ticket_structure: str = "boxed",
+        anchor_box: Optional[int] = None,
+        secondary_anchor: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Calculates precise projected TAB / Pari-Mutuel tote odds, dividend ranges,
-        break-even thresholds, and expected value for a 4-dog boxed Trifecta ticket.
-        Defaults to 5% flexi stake ($1.20 on 24 combos).
+        break-even thresholds, and expected value for a 4-dog Trifecta ticket.
+        Supports Combinatorial Selective Boxing: Boxed, Standout Anchor (Key 1st),
+        Dual Banker (1st & 2nd), and Roving Banker.
+        Defaults to $1.20 stake (5% flexi on 24 combos, or 20% flexi on 6 standout combos).
         Enables punters to verify whether their stake is mathematically positive (+EV).
         """
         preds = self.analytics.predict_race_probabilities(race_id)
@@ -440,6 +588,14 @@ class ExoticBetOptimizer:
                 "places_paid": places_paid,
                 "no_third_place_dividend": no_third_place_dividend,
                 "place_terms_note": "Win Only (No Place Dividends Paid)",
+                "ticket_structure": ticket_structure,
+                "structure_label": "Not Offered",
+                "structure_description": "Trifecta betting is unavailable.",
+                "anchor_box": None,
+                "secondary_anchor": None,
+                "recommended_structure": "none",
+                "recommendation_reason": "Field size below TAB minimum of 4 runners.",
+                "available_structures": [],
                 "selected_boxes": [],
                 "selected_runners": [],
                 "combinations_count": 0,
@@ -448,6 +604,7 @@ class ExoticBetOptimizer:
                 "is_full_field_coverage": False,
                 "stake": custom_stake,
                 "flexi_percent": 0.0,
+                "flexi_multiplier": 0.0,
                 "hit_probability": 0.0,
                 "hit_probability_pct": 0.0,
                 "break_even_dividend": 0.0,
@@ -490,12 +647,18 @@ class ExoticBetOptimizer:
         tot_mkt_p = sum(1.0 / max(1.01, market_odds.get(b, 10.0)) for b in market_odds)
         mkt_probs = {b: (1.0 / max(1.01, market_odds.get(b, 10.0))) / tot_mkt_p for b in market_odds}
 
-        combos = math.perm(len(selected_boxes), 3)
-        perms = list(itertools.permutations(selected_boxes, 3))
+        # Generate chosen combinatorial permutations
+        perms, combos, struct_label, struct_desc, actual_anchor, actual_sec = self._generate_exotic_permutations(
+            "trifecta", selected_boxes, ticket_structure, anchor_box, secondary_anchor
+        )
+
+        base_combos = math.perm(len(selected_boxes), 3)
+        base_flexi = round((custom_stake / max(1, base_combos)) * 100.0, 2)
         flexi_ratio = custom_stake / max(1, combos)
         flexi_pct = round(flexi_ratio * 100.0, 2)
+        flexi_multiplier = round(flexi_pct / max(0.1, base_flexi), 1)
         field_coverage_pct = round((combos / total_race_combos) * 100.0, 1)
-        is_full_field = (len(selected_boxes) == n_active)
+        is_full_field = (combos == total_race_combos)
 
         div_items = []
         tot_prob = 0.0
@@ -556,10 +719,59 @@ class ExoticBetOptimizer:
             for d in likely_sorted[:5]
         ]
 
+        # Determine recommended structure based on model probabilities
+        p1 = win_probs.get(selected_boxes[0], 0.0)
+        p2 = win_probs.get(selected_boxes[1], 0.0) if len(selected_boxes) > 1 else 0.0
+
+        if n_active == 4 and ticket_structure == "boxed":
+            recommended_structure = "standout"
+            recommendation_reason = f"4-runner field covers 100% in Boxed mode (-21% takeout drag). Standout 1st covers 6 combos @ 20% flexi (+300% payout boost)."
+        elif p1 >= 0.40 or (p1 - p2) >= 0.15:
+            recommended_structure = "standout"
+            recommendation_reason = f"Dominant favorite detected (Box {selected_boxes[0]} win prob {p1*100:.1f}%). Standout yields 20% flexi (4x payout boost) vs 5% boxed."
+        elif (p1 + p2) >= 0.65:
+            recommended_structure = "dual_banker"
+            recommendation_reason = f"Two dominant top dogs (Boxes {selected_boxes[0]} & {selected_boxes[1]}). Dual banker yields 30% flexi (6x payout boost)."
+        else:
+            recommended_structure = "boxed"
+            recommendation_reason = "Open competitive race. Standard boxed ticket offers maximum coverage."
+
+        # Available structure comparisons
+        struct_options = ["boxed", "standout", "dual_banker", "roving_banker"]
+        available_structures = []
+        for s_code in struct_options:
+            s_perms, s_combos, s_lbl, s_desc, _, _ = self._generate_exotic_permutations(
+                "trifecta", selected_boxes, s_code, anchor_box, secondary_anchor
+            )
+            s_flexi = round((custom_stake / max(1, s_combos)) * 100.0, 2)
+            s_mult = round(s_flexi / max(0.1, base_flexi), 1)
+            is_rec = (s_code == recommended_structure)
+            rec_badge = "⭐ Recommended" if is_rec else (f"{s_mult}x Flexi" if s_mult > 1.0 else "Base")
+            available_structures.append({
+                "structure": s_code,
+                "label": s_lbl,
+                "description": s_desc,
+                "combinations_count": s_combos,
+                "flexi_percent": s_flexi,
+                "flexi_multiplier": s_mult,
+                "is_recommended": is_rec,
+                "recommendation_badge": rec_badge
+            })
+
         # Recommendation verdict
         if is_full_field:
             verdict = "NEGATIVE EXPECTATION (100% COVERAGE)"
-            verdict_note = f"Small field ({n_active} runners - Win Only, No Place Dividends). Boxing all 4 runners covers 100% of combinations (24/24) with TAB 21% takeout guaranteeing an average net loss on turnover. Recommend anchoring the top pick or boxing Top 3."
+            verdict_note = f"Small field ({n_active} runners - Win Only, No Place Dividends). Boxing all 4 runners covers 100% of combinations (24/24) with TAB 21% takeout guaranteeing an average net loss on turnover. Recommend anchoring the top pick (6 combos @ 20% flexi)."
+        elif ticket_structure == "standout":
+            if expected_value >= 2.0:
+                verdict = "STRONG VALUE (+EV STANDOUT)"
+                verdict_note = f"High-yield Standout Trifecta (Box {actual_anchor} Key 1st). Covers {combos} combos ({field_coverage_pct}% of race) at {flexi_pct}% flexi ({flexi_multiplier}x dividend multiplier) with projected net return +${expected_value:.2f}."
+            elif expected_value > 0.0:
+                verdict = "POSITIVE (+EV STANDOUT)"
+                verdict_note = f"Positive expectation Standout Trifecta (Box {actual_anchor} Key 1st). Yields {flexi_pct}% flexi ({flexi_multiplier}x multiplier)."
+            else:
+                verdict = "MARGINAL STANDOUT"
+                verdict_note = f"Standout Trifecta on Box {actual_anchor}. Projected return ${proj_avg_payout:.2f} on ${custom_stake:.2f} outlay."
         elif no_third_place_dividend:
             if expected_value >= 2.0:
                 verdict = "STRONG VALUE (+EV)"
@@ -591,6 +803,14 @@ class ExoticBetOptimizer:
             "places_paid": places_paid,
             "no_third_place_dividend": no_third_place_dividend,
             "place_terms_note": place_terms_label,
+            "ticket_structure": ticket_structure,
+            "structure_label": struct_label,
+            "structure_description": struct_desc,
+            "anchor_box": actual_anchor,
+            "secondary_anchor": actual_sec,
+            "recommended_structure": recommended_structure,
+            "recommendation_reason": recommendation_reason,
+            "available_structures": available_structures,
             "total_race_permutations": total_race_combos,
             "field_coverage_pct": field_coverage_pct,
             "is_full_field_coverage": is_full_field,
@@ -600,13 +820,16 @@ class ExoticBetOptimizer:
                     "box": b,
                     "name": runner_names.get(b, f"Box {b}"),
                     "odds": market_odds.get(b, 0.0),
-                    "win_prob_pct": round(win_probs.get(b, 0.0) * 100.0, 1)
+                    "win_prob_pct": round(win_probs.get(b, 0.0) * 100.0, 1),
+                    "is_anchor": (b == actual_anchor),
+                    "is_secondary_anchor": (b == actual_sec)
                 }
                 for b in selected_boxes
             ],
             "combinations_count": combos,
             "stake": custom_stake,
             "flexi_percent": flexi_pct,
+            "flexi_multiplier": flexi_multiplier,
             "hit_probability": round(tot_prob, 4),
             "hit_probability_pct": round(tot_prob * 100.0, 1),
             "break_even_dividend": break_even_div,
@@ -626,7 +849,7 @@ class ExoticBetOptimizer:
             "verdict": verdict,
             "verdict_note": verdict_note,
             "top_combinations_preview": top5_preview,
-            "summary": f"4-Dog Boxed Trifecta ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
+            "summary": f"{struct_label} ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
         }
 
     def build_standout_ticket(

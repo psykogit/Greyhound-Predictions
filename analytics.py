@@ -16,6 +16,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 import sqlite3
 from db import get_connection
+from track_calibration_engine import TrackCalibrationEngine
 
 AEDT_TZ = timezone(timedelta(hours=11))
 
@@ -321,6 +322,7 @@ class GreyhoundAnalytics:
     def __init__(self, db_conn: Optional[sqlite3.Connection] = None):
         self.conn = db_conn or get_connection()
         self._track_temp_cache: Dict[str, float] = {}
+        self.track_calibration_engine = TrackCalibrationEngine(db_path="greyhound_racing.db")
 
     def get_track_temperature(self, track_name: Optional[str]) -> float:
         """
@@ -690,16 +692,35 @@ class GreyhoundAnalytics:
             "proven_stamina": proven_stamina
         }
 
-    def calculate_conditional_box_bias(self, box: int, form_score: float, early_speed_rank: int, is_straight: bool = False) -> float:
+    def calculate_conditional_box_bias(
+        self,
+        box: int,
+        form_score: float,
+        early_speed_rank: int,
+        is_straight: bool = False,
+        track_calib: Optional[Dict[str, Any]] = None
+    ) -> float:
         """
-        Calculates box multiplier with CONDITIONAL GATING and Track Geometry.
+        Calculates box multiplier with CONDITIONAL GATING and Autonomous Track Calibration.
+        - Leverages empirical Bayesian-shrunk multipliers from TrackCalibrationEngine when available.
         - Circular tracks: Box 1 provides a huge advantage ONLY if the dog has adequate form/speed to hold the rail.
-        - Straight tracks (e.g. Q Straight, Healesville): NO turn, NO rail bias. Outside boxes (7 & 8) hold massive clean-air drag advantage!
+        - Straight tracks (e.g. Q Straight, Healesville, Capalaba): Outside boxes hold clean-air drag advantage.
         """
+        # 1. Empirical Calibration Baseline (if calibrated)
+        has_empirical = bool(track_calib and track_calib.get("is_calibrated"))
+        empirical_box_mult = track_calib.get("box_multipliers", {}).get(box, 1.0) if has_empirical else None
+
         if is_straight:
-            # Straight track geometry:
-            # Outside boxes (7, 8) only hold advantage when accompanied by top early pace!
-            # If Box 8 is slower early than inside dogs (speed rank >= 4), it gets marooned wide.
+            # Straight track geometry
+            if has_empirical and empirical_box_mult:
+                # Modulate empirical multiplier with early speed rank
+                if box in (7, 8):
+                    return round(empirical_box_mult * 1.05, 3) if early_speed_rank <= 2 else round(empirical_box_mult * 0.96, 3)
+                elif box in (1, 2, 3):
+                    return round(empirical_box_mult * 1.04, 3) if early_speed_rank <= 2 else round(empirical_box_mult * 0.98, 3)
+                return empirical_box_mult
+
+            # Fallback static straight geometry
             if box == 8:
                 return 1.14 if early_speed_rank <= 2 else (1.06 if early_speed_rank == 3 else 0.98)
             elif box == 7:
@@ -707,23 +728,25 @@ class GreyhoundAnalytics:
             elif box == 6:
                 return 1.06
             elif box in (1, 2, 3):
-                # Inside boxes with elite early speed (rank 1 or 2) command the clear central runway
                 return 1.06 if early_speed_rank <= 2 else 0.99
             elif box in (4, 5):
                 return 1.00
             return 1.00
 
         # Baseline track geometry bias for circular tracks
-        base_bias = {
-            1: 1.25,
-            2: 1.10,
-            3: 1.00,
-            4: 0.90,
-            5: 0.88,
-            6: 0.92,
-            7: 1.02,
-            8: 1.05
-        }.get(box, 1.0)
+        if has_empirical and empirical_box_mult:
+            base_bias = empirical_box_mult
+        else:
+            base_bias = {
+                1: 1.25,
+                2: 1.10,
+                3: 1.00,
+                4: 0.90,
+                5: 0.88,
+                6: 0.92,
+                7: 1.02,
+                8: 1.05
+            }.get(box, 1.0)
 
         # Conditional gating for Box 1 on circular tracks
         if box == 1:
@@ -847,6 +870,9 @@ class GreyhoundAnalytics:
 
         # Identify straight tracks (Capalaba, Q Straight, Healesville, Richmond Straight, Murray Bridge Straight)
         is_straight = any(st in (track_name or "").upper() for st in ["STRAIGHT", "HEALESVILLE", "CAPALABA"])
+
+        # Autonomous dynamic empirical track calibration (Bayesian box multipliers, speed dominance, rail bias)
+        track_calib = self.track_calibration_engine.get_track_calibration(track_name, distance)
 
         # Detect scratched / vacant boxes to calculate lane clearance buffers
         cursor.execute("SELECT box_number FROM race_runners WHERE race_id = ? AND is_scratched = 1", (race_id,))
@@ -1063,6 +1089,14 @@ class GreyhoundAnalytics:
             w_speed = min(0.80, w_speed + 0.12)
             w_form = max(0.20, w_form - 0.12)
 
+        # Autonomous dynamic track calibration adjustment for early lead dominance:
+        if track_calib and track_calib.get("is_calibrated"):
+            spd_factor = track_calib.get("speed_weight_factor", 1.0)
+            if spd_factor != 1.0:
+                spd_adj = (spd_factor - 1.0) * 0.4
+                w_speed = max(0.35, min(0.75, w_speed + spd_adj))
+                w_form = round(1.0 - w_speed, 4)
+
         # Check best times among runners
         valid_best_times = [m["best_time"] for m in runner_metrics if m["best_time"]]
         avg_best_time = sum(valid_best_times) / len(valid_best_times) if valid_best_times else None
@@ -1185,8 +1219,8 @@ class GreyhoundAnalytics:
                 # High reliability to place, but struggles to finish off the win
                 form_score *= 0.88
 
-            # Box Multiplier (Straight track vs Circular track)
-            box_factor = self.calculate_conditional_box_bias(m["box"], form_score, m["speed_rank"], is_straight=is_straight)
+            # Box Multiplier (Straight track vs Circular track with Autonomous Empirical Calibration)
+            box_factor = self.calculate_conditional_box_bias(m["box"], form_score, m["speed_rank"], is_straight=is_straight, track_calib=track_calib)
             if not is_straight and b1_b2_parity:
                 if m["box"] == 1 and box_factor > 1.20:
                     box_factor = 1.18  # Reduce monopoly
@@ -2681,7 +2715,13 @@ class GreyhoundAnalytics:
                 "capalaba_starts": sr.get("capalaba_starts", 0),
                 "places_paid": places_paid,
                 "no_third_place_dividend": no_third_place_dividend,
-                "place_terms": f"Paying {places_paid} Places (No 3rd Place Dividend)" if no_third_place_dividend else "Paying 3 Places"
+                "place_terms": f"Paying {places_paid} Places (No 3rd Place Dividend)" if no_third_place_dividend else "Paying 3 Places",
+                "track_calibration": {
+                    "is_calibrated": track_calib.get("is_calibrated", False),
+                    "sample_starts": track_calib.get("sample_starts", 0),
+                    "rail_bias_index": track_calib.get("rail_bias_index", 1.0),
+                    "speed_weight_factor": track_calib.get("speed_weight_factor", 1.0)
+                }
             })
 
         sorted_results = sorted(results, key=lambda x: x["model_win_prob"], reverse=True)

@@ -278,6 +278,15 @@ def get_race_analysis(race_id: int):
     raw_tips = race["expert_tips"] if race and "expert_tips" in race.keys() else None
     parsed_tips = [int(x.strip()) for x in raw_tips.split(",") if x.strip().isdigit()] if raw_tips else None
 
+    # Dynamic track calibration profile
+    from track_calibration_engine import TrackCalibrationEngine
+    track_calib = None
+    try:
+        t_engine = TrackCalibrationEngine()
+        track_calib = t_engine.get_track_calibration(race["track_name"], race["distance"] or 400)
+    except Exception as e:
+        logger.warning(f"Failed to fetch track calibration for {race.get('track_name')}: {e}")
+
     # Estimate 5-Dog Boxed First 4 & 4-Dog Boxed Trifecta Odds & Staking Payouts (Default 5% Flexi)
     from exotic_bet_optimizer import ExoticBetOptimizer
     f4_odds_estimate = None
@@ -317,38 +326,96 @@ def get_race_analysis(race_id: int):
         "no_third_place_dividend": len(predictions) < 8,
         "place_terms_label": "Paying 2 Places (No 3rd Place Dividend)" if (5 <= len(predictions) <= 7) else ("Win Only (No Place Dividends)" if len(predictions) < 5 else "Paying 3 Places (Standard 8-Runner Field)"),
         "boxed_first4_estimate": f4_odds_estimate,
-        "boxed_trifecta_estimate": tri_odds_estimate
+        "boxed_trifecta_estimate": tri_odds_estimate,
+        "track_calibration": track_calib
     }
 
 
 @app.get("/api/races/{race_id}/estimate-first4")
-def estimate_first4_odds_api(race_id: int, stake: float = 6.0, boxes: Optional[str] = None):
+def estimate_first4_odds_api(
+    race_id: int,
+    stake: float = 6.0,
+    boxes: Optional[str] = None,
+    structure: str = "boxed",
+    anchor: Optional[int] = None,
+    secondary_anchor: Optional[int] = None
+):
     """
     Returns live projected tote dividends, payouts, break-even targets,
-    and expected value for a 5-dog boxed First 4 ticket (default 5% flexi = $6.00).
+    and expected value for a First 4 ticket with Combinatorial Selective Boxing.
     """
     from exotic_bet_optimizer import ExoticBetOptimizer
     try:
         optimizer = ExoticBetOptimizer()
         selected_boxes = [int(b.strip()) for b in boxes.split(",") if b.strip().isdigit()] if boxes else None
-        return optimizer.estimate_boxed_first4_odds(race_id, selected_boxes=selected_boxes, custom_stake=stake)
+        return optimizer.estimate_boxed_first4_odds(
+            race_id,
+            selected_boxes=selected_boxes,
+            custom_stake=stake,
+            ticket_structure=structure,
+            anchor_box=anchor,
+            secondary_anchor=secondary_anchor
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/races/{race_id}/estimate-trifecta")
-def estimate_trifecta_odds_api(race_id: int, stake: float = 1.20, boxes: Optional[str] = None):
+def estimate_trifecta_odds_api(
+    race_id: int,
+    stake: float = 1.20,
+    boxes: Optional[str] = None,
+    structure: str = "boxed",
+    anchor: Optional[int] = None,
+    secondary_anchor: Optional[int] = None
+):
     """
     Returns live projected tote dividends, payouts, break-even targets,
-    and expected value for a 4-dog boxed Trifecta ticket (default 5% flexi = $1.20).
+    and expected value for a Trifecta ticket with Combinatorial Selective Boxing.
     """
     from exotic_bet_optimizer import ExoticBetOptimizer
     try:
         optimizer = ExoticBetOptimizer()
         selected_boxes = [int(b.strip()) for b in boxes.split(",") if b.strip().isdigit()] if boxes else None
-        return optimizer.estimate_boxed_trifecta_odds(race_id, selected_boxes=selected_boxes, custom_stake=stake)
+        return optimizer.estimate_boxed_trifecta_odds(
+            race_id,
+            selected_boxes=selected_boxes,
+            custom_stake=stake,
+            ticket_structure=structure,
+            anchor_box=anchor,
+            secondary_anchor=secondary_anchor
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/tracks/calibration-report")
+def get_track_calibration_report(track: Optional[str] = None, distance: Optional[int] = None):
+    """
+    Returns empirical autonomous track calibration profiles, rail biases,
+    box multipliers, and lead dominance metrics.
+    """
+    from track_calibration_engine import TrackCalibrationEngine
+    engine = TrackCalibrationEngine()
+    if track:
+        return engine.get_track_calibration(track, distance or 400)
+    return {"calibrations": engine.get_calibration_summary()}
+
+
+@app.post("/api/tracks/recalibrate")
+def trigger_track_recalibration():
+    """
+    Triggers on-demand autonomous empirical recalculation of all track geometries,
+    box strike rates, and split lead dominance factors across historical race data.
+    """
+    from track_calibration_engine import TrackCalibrationEngine
+    engine = TrackCalibrationEngine()
+    reports = engine.calibrate_all_tracks()
+    return {
+        "status": "success",
+        "calibrated_count": len(reports),
+        "message": f"Successfully recalibrated {len(reports)} track and distance profiles."
+    }
 
 
 @app.get("/api/races/{race_id}/exotics")

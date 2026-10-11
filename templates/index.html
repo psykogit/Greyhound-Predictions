@@ -273,6 +273,18 @@
                 <span id="w-cond-badge" class="px-2 py-0.5 rounded border border-navy-500 bg-navy-600/80 text-slate-200"><span id="w-cond">--</span></span>
               </div>
 
+              <!-- Autonomous Dynamic Track Calibration Pill -->
+              <div id="track-calibration-pill" class="hidden mt-3 flex items-center space-x-2 text-xs flex-wrap gap-y-1">
+                <span id="track-calibration-badge" class="px-2.5 py-1 rounded bg-teal-950/90 text-teal-300 border border-teal-700/80 flex items-center space-x-2 shadow">
+                  <i class="fa-solid fa-crosshairs text-[11px] text-teal-400"></i>
+                  <span id="track-calibration-text" class="font-semibold text-slate-200"></span>
+                </span>
+                <button onclick="recalibrateTracksNow()" id="btn-recalibrate-track" class="px-2 py-1 rounded bg-navy-700 hover:bg-navy-600 border border-navy-500 text-[10px] text-slate-300 font-semibold transition flex items-center space-x-1" title="Recompute empirical Bayesian track calibrations across historical race results">
+                  <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
+                  <span>Recalibrate</span>
+                </button>
+              </div>
+
               <!-- Scratched Banner -->
               <div id="scratched-banner" class="hidden mt-3 flex items-center space-x-2 text-xs">
                 <span class="px-2.5 py-1 rounded bg-rose-950/90 text-rose-300 border border-rose-800/80 flex items-center space-x-2 shadow">
@@ -1627,6 +1639,30 @@ ${finishBadge}
           wPill.classList.add('hidden');
         }
 
+        // Autonomous Dynamic Track Calibration Pill
+        const calibPill = document.getElementById('track-calibration-pill');
+        const calibText = document.getElementById('track-calibration-text');
+        if (data.track_calibration && data.track_calibration.sample_starts >= 8) {
+          calibPill.classList.remove('hidden');
+          const tc = data.track_calibration;
+          const railHighlight = tc.rail_bias_index >= 1.25 ? 'text-amber-300 font-black' : (tc.rail_bias_index <= 0.85 ? 'text-cyan-300 font-bold' : 'text-slate-200');
+          calibText.innerHTML = `Track Calibrated: <b class="text-teal-200">${tc.track_name} (${(tc.distance_band || 'sprint').toUpperCase()})</b> • Rail Bias: <span class="${railHighlight}">${tc.rail_bias_index}x</span> • Speed Factor: <b class="text-teal-300">${tc.speed_weight_factor}x</b> • Lead Dominance: <b>${tc.lead_dominance_pct}%</b> <span class="text-slate-400 font-mono text-[10px]">(${tc.sample_starts} starts)</span>`;
+        } else if (data.track_calibration) {
+          calibPill.classList.remove('hidden');
+          const tc = data.track_calibration;
+          calibText.innerHTML = `Track Prior: <b class="text-teal-200">${tc.track_name || 'Standard'}</b> • Rail Bias: <b>${tc.rail_bias_index}x</b> • <span class="text-slate-400 text-[10px]">Geometric Prior</span>`;
+        } else {
+          calibPill.classList.add('hidden');
+        }
+
+        // Reset exotic structures for newly loaded race
+        currentTriStructure = (data.boxed_trifecta_estimate && data.boxed_trifecta_estimate.recommended_structure) || 'boxed';
+        currentTriAnchor = data.boxed_trifecta_estimate ? data.boxed_trifecta_estimate.anchor_box : null;
+        currentTriSecAnchor = data.boxed_trifecta_estimate ? data.boxed_trifecta_estimate.secondary_anchor : null;
+        currentF4Structure = (data.boxed_first4_estimate && data.boxed_first4_estimate.recommended_structure) || 'boxed';
+        currentF4Anchor = data.boxed_first4_estimate ? data.boxed_first4_estimate.anchor_box : null;
+        currentF4SecAnchor = data.boxed_first4_estimate ? data.boxed_first4_estimate.secondary_anchor : null;
+
         // Scratched Banner
         const scratchBanner = document.getElementById('scratched-banner');
         const scratchText = document.getElementById('scratched-list-text');
@@ -1977,13 +2013,20 @@ ${finishBadge}
         `;
       }
 
+      const currentStruct = est.ticket_structure || 'boxed';
+      const structLabel = est.structure_label || typeLabel;
+      const flexiMultBadge = (est.flexi_multiplier > 1.0)
+        ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-900 text-teal-200 border border-teal-600 shadow-sm ml-1.5"><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>${est.flexi_multiplier}x Flexi</span>`
+        : '';
+
       return `
         <!-- Top Row: Selected Dogs & Quick Stakes -->
-        <div class="flex flex-wrap items-center justify-between gap-3 bg-[#0e141b] p-3 rounded-lg border border-navy-500 mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-[#0e141b] p-3 rounded-lg border border-navy-500 mb-3">
           <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider">${typeLabel}:</span>
+            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider">${structLabel}:</span>
             <div class="flex items-center space-x-1.5">${boxesBadges}</div>
             <span class="text-[10px] text-slate-400 font-mono">(${est.combinations_count || (isTri ? 24 : 120)} combos)</span>
+            ${flexiMultBadge}
           </div>
           <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
             <span class="text-[10px] font-bold text-slate-400 uppercase mr-1">Stake:</span>
@@ -1993,6 +2036,90 @@ ${finishBadge}
               <input type="number" id="${inputId}" value="${est.stake}" step="${stepVal}" min="0.5" max="1000" class="w-16 px-1.5 py-0.5 rounded text-xs bg-navy-800 text-slate-100 border border-navy-500 font-mono text-center focus:border-emerald-400 focus:outline-none" onchange="${updateFn}(${raceId}, this.value)" />
             </div>
           </div>
+        </div>
+
+        <!-- Combinatorial Selective Boxing Framing Bar -->
+        <div class="bg-[#0b1016] border border-navy-500 rounded-lg p-3 mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div class="flex items-center space-x-2">
+              <span class="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center space-x-1.5">
+                <i class="fa-solid fa-shapes text-teal-400"></i>
+                <span>Combinatorial Ticket Framing:</span>
+              </span>
+              <span class="text-[10px] text-slate-400 hidden sm:inline">${est.structure_description || ''}</span>
+            </div>
+            ${est.recommendation_reason ? `
+              <div class="text-[10px] bg-amber-950/80 border border-amber-600/50 text-amber-300 px-2 py-0.5 rounded font-mono flex items-center space-x-1 shadow">
+                <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i>
+                <span>AI Recommendation: ${est.recommendation_reason}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Structure Toggle Pills -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${(est.available_structures || []).map(s => {
+              const isSelected = (currentStruct === s.structure);
+              const isRec = s.is_recommended;
+              const activeCls = isSelected
+                ? 'bg-teal-500 text-black font-extrabold ring-2 ring-teal-300 shadow-md'
+                : 'bg-navy-800 text-slate-300 hover:bg-navy-700 hover:text-white border border-navy-600';
+              return `
+                <button onclick="setExoticStructure('${type}', ${raceId}, '${s.structure}')" class="p-2 rounded-lg text-left transition flex flex-col justify-between ${activeCls}">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold truncate">${s.label.split(' (')[0]}</span>
+                    ${isRec ? `<span class="text-[9px] px-1 py-0.2 rounded font-black ${isSelected ? 'bg-black text-amber-300' : 'bg-amber-500 text-black'} shadow">⭐ Rec</span>` : (s.flexi_multiplier > 1.0 ? `<span class="text-[9px] px-1 py-0.2 rounded font-bold ${isSelected ? 'bg-black text-teal-300' : 'bg-teal-900 text-teal-200 border border-teal-700'}">${s.flexi_multiplier}x Flexi</span>` : '')}
+                  </div>
+                  <div class="flex items-center justify-between mt-1 text-[10px] font-mono ${isSelected ? 'text-black/80' : 'text-slate-400'}">
+                    <span>${s.combinations_count} combos</span>
+                    <span class="font-bold">${s.flexi_percent}% Flexi</span>
+                  </div>
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Interactive Key Anchor Selector (Active for Standout, Dual Banker, Roving Banker) -->
+          ${currentStruct !== 'boxed' ? `
+            <div class="mt-2.5 pt-2 border-t border-navy-700 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                <span class="text-[10px] font-bold text-teal-300 uppercase tracking-wider">
+                  <i class="fa-solid fa-anchor mr-1 text-teal-400"></i>Key Anchor (1st):
+                </span>
+                <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                  ${(est.selected_runners || []).map(r => {
+                    const isAnchor = (r.box === est.anchor_box);
+                    return `
+                      <button onclick="setExoticAnchor('${type}', ${raceId}, ${r.box})" class="flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono transition border ${isAnchor ? 'bg-amber-500 text-black font-extrabold border-amber-300 shadow' : 'bg-navy-700 text-slate-300 border-navy-600 hover:border-slate-400'}">
+                        <span class="badge-box-${r.box} w-4 h-4 rounded text-[9px] font-bold inline-flex items-center justify-center">${r.box}</span>
+                        <span>${r.name.split(' ')[0]}</span>
+                        ${isAnchor ? '<i class="fa-solid fa-lock text-[8px] ml-0.5"></i>' : ''}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+              ${currentStruct === 'dual_banker' ? `
+                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <span class="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">
+                    2nd Anchor:
+                  </span>
+                  <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                    ${(est.selected_runners || []).filter(r => r.box !== est.anchor_box).map(r => {
+                      const isSec = (r.box === est.secondary_anchor);
+                      return `
+                        <button onclick="setExoticSecondaryAnchor('${type}', ${raceId}, ${r.box})" class="flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono transition border ${isSec ? 'bg-cyan-500 text-black font-extrabold border-cyan-300 shadow' : 'bg-navy-700 text-slate-300 border-navy-600 hover:border-slate-400'}">
+                          <span class="badge-box-${r.box} w-4 h-4 rounded text-[9px] font-bold inline-flex items-center justify-center">${r.box}</span>
+                          <span>${r.name.split(' ')[0]}</span>
+                          ${isSec ? '<i class="fa-solid fa-lock text-[8px] ml-0.5"></i>' : ''}
+                        </button>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
         </div>
 
         ${takeoutWarningHtml}
@@ -2126,29 +2253,99 @@ ${finishBadge}
       `;
     }
 
-    async function updateTrifectaStake(raceId, stakeVal) {
-      const stake = parseFloat(stakeVal) || 1.20;
+    let currentTriStructure = 'boxed';
+    let currentTriAnchor = null;
+    let currentTriSecAnchor = null;
+    let currentF4Structure = 'boxed';
+    let currentF4Anchor = null;
+    let currentF4SecAnchor = null;
+
+    async function setExoticStructure(type, raceId, structure) {
+      if (type === 'trifecta') {
+        currentTriStructure = structure;
+        await reloadTrifectaEstimate(raceId);
+      } else {
+        currentF4Structure = structure;
+        await reloadF4Estimate(raceId);
+      }
+    }
+
+    async function setExoticAnchor(type, raceId, box) {
+      if (type === 'trifecta') {
+        currentTriAnchor = box;
+        await reloadTrifectaEstimate(raceId);
+      } else {
+        currentF4Anchor = box;
+        await reloadF4Estimate(raceId);
+      }
+    }
+
+    async function setExoticSecondaryAnchor(type, raceId, box) {
+      if (type === 'trifecta') {
+        currentTriSecAnchor = box;
+        await reloadTrifectaEstimate(raceId);
+      } else {
+        currentF4SecAnchor = box;
+        await reloadF4Estimate(raceId);
+      }
+    }
+
+    async function reloadTrifectaEstimate(raceId) {
+      const stake = (currentTrifectaEst && currentTrifectaEst.stake) ? currentTrifectaEst.stake : 1.20;
+      let url = `/api/races/${raceId}/estimate-trifecta?stake=${stake}&structure=${currentTriStructure}`;
+      if (currentTriAnchor) url += `&anchor=${currentTriAnchor}`;
+      if (currentTriSecAnchor) url += `&secondary_anchor=${currentTriSecAnchor}`;
       try {
-        const res = await fetch(`/api/races/${raceId}/estimate-trifecta?stake=${stake}`);
+        const res = await fetch(url);
         if (res.ok) {
           currentTrifectaEst = await res.json();
           renderExoticEstimators(currentTrifectaEst, currentF4Est, raceId);
         }
       } catch (err) {
-        console.error('Failed to update Trifecta stake estimate:', err);
+        console.error('Failed reloading Trifecta estimate:', err);
       }
     }
 
-    async function updateF4Stake(raceId, stakeVal) {
-      const stake = parseFloat(stakeVal) || 6.0;
+    async function reloadF4Estimate(raceId) {
+      const stake = (currentF4Est && currentF4Est.stake) ? currentF4Est.stake : 6.0;
+      let url = `/api/races/${raceId}/estimate-first4?stake=${stake}&structure=${currentF4Structure}`;
+      if (currentF4Anchor) url += `&anchor=${currentF4Anchor}`;
+      if (currentF4SecAnchor) url += `&secondary_anchor=${currentF4SecAnchor}`;
       try {
-        const res = await fetch(`/api/races/${raceId}/estimate-first4?stake=${stake}`);
+        const res = await fetch(url);
         if (res.ok) {
           currentF4Est = await res.json();
           renderExoticEstimators(currentTrifectaEst, currentF4Est, raceId);
         }
       } catch (err) {
-        console.error('Failed to update First 4 stake estimate:', err);
+        console.error('Failed reloading First 4 estimate:', err);
+      }
+    }
+
+    async function updateTrifectaStake(raceId, stakeVal) {
+      const stake = parseFloat(stakeVal) || 1.20;
+      if (currentTrifectaEst) currentTrifectaEst.stake = stake;
+      await reloadTrifectaEstimate(raceId);
+    }
+
+    async function updateF4Stake(raceId, stakeVal) {
+      const stake = parseFloat(stakeVal) || 6.0;
+      if (currentF4Est) currentF4Est.stake = stake;
+      await reloadF4Estimate(raceId);
+    }
+
+    async function recalibrateTracksNow() {
+      const btn = document.getElementById('btn-recalibrate-track');
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Calibrating...';
+      try {
+        const res = await fetch('/api/tracks/recalibrate', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Empirical track recalibration complete!');
+        if (currentRaceId) selectRace(currentRaceId);
+      } catch (e) {
+        alert('Recalibration failed: ' + e);
+      } finally {
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-arrows-rotate text-[10px] mr-1"></i>Recalibrate';
       }
     }
 
