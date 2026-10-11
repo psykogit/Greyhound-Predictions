@@ -492,14 +492,26 @@ class GreyhoundAnalytics:
         if track_name and pbs:
             t_upper = track_name.upper()
             aliases = [t_upper.replace("PARK", "").replace("STRAIGHT", "").strip()]
-            if any(k in t_upper for k in ["Q STRAIGHT", "CAPALABA", "CAPA"]):
-                aliases.extend(["CAPALABA", "Q STRAIGHT", "CAPA", "LAKESIDE"])
+            if any(k in t_upper for k in ["CAPALABA", "CAPA"]):
+                aliases = ["CAPALABA", "CAPA", "BETDELUXE CAPALABA"]
+            elif "Q STRAIGHT" in t_upper or "THE Q STRAIGHT" in t_upper:
+                aliases = ["Q STRAIGHT", "LADBROKES Q STRAIGHT", "THE Q STRAIGHT", "PURGA STRAIGHT"]
+            elif "LAKESIDE" in t_upper or "Q1" in t_upper:
+                aliases = ["LAKESIDE", "Q1 LAKESIDE", "LADBROKES Q1 LAKESIDE", "Q1"]
+            elif "PARKLANDS" in t_upper or "Q2" in t_upper:
+                aliases = ["PARKLANDS", "Q2 PARKLANDS", "LADBROKES Q2 PARKLANDS", "Q2"]
             elif "RICHMOND" in t_upper:
-                aliases.extend(["RICHMOND STRAIGHT", "RICHMOND"])
+                if "STRAIGHT" in t_upper:
+                    aliases = ["RICHMOND STRAIGHT"]
+                else:
+                    aliases = ["RICHMOND"]
             elif "HEALESVILLE" in t_upper:
-                aliases.extend(["HEALESVILLE"])
+                aliases = ["HEALESVILLE"]
             elif "MURRAY BRIDGE" in t_upper:
-                aliases.extend(["MURRAY BRIDGE STRAIGHT", "MURRAY BRIDGE"])
+                if "STRAIGHT" in t_upper:
+                    aliases = ["MURRAY BRIDGE STRAIGHT"]
+                else:
+                    aliases = ["MURRAY BRIDGE"]
 
             for pb in pbs:
                 pb_track = pb.get("track", "").upper()
@@ -1758,12 +1770,37 @@ class GreyhoundAnalytics:
                 if m["box"] in (1, 2): box_factor = max(1.18, box_factor)
             # 2. Universal Straight Track Bias
             if is_straight or any(t in track_upper for t in ["HEALESVILLE", "CAPALABA", "RICHMOND STRAIGHT", "MURRAY BRIDGE STRAIGHT", "Q STRAIGHT"]):
-                # Straight tracks: The outside fences (Box 1 and 8) provide a physical visual guide rail.
-                # Young dogs in the middle (4,5) often weave and lose momentum.
-                if m["box"] in (1, 8):
-                    box_factor = max(1.15, box_factor)
-                elif m["box"] in (4, 5):
-                    box_factor = min(0.92, box_factor)
+                if "CAPALABA" in track_upper:
+                    # Capalaba 366m Grass Straight: Outside Lure mounted along the grandstand fence (Box 8).
+                    # Outside boxes (7, 8) enjoy direct sightlines and unimpeded straight line along the lure rail.
+                    # Box 6 also has clean outer runway air.
+                    # Box 1 does NOT enjoy circular rail advantage (the lure is on the opposite fence 25m away).
+                    if m["box"] in (7, 8):
+                        box_factor = max(1.18, box_factor)
+                    elif m["box"] == 6:
+                        box_factor = max(1.08, box_factor)
+                    elif m["box"] in (1, 2):
+                        box_factor = min(0.96, box_factor)
+                    elif m["box"] in (4, 5):
+                        # Middle pinch mitigated if runner has top-2 proven track motor
+                        is_top_engine = bool(min_best_time and m.get("best_time") and m["best_time"] <= min_best_time + 0.35)
+                        if is_top_engine:
+                            box_factor = max(1.02, box_factor)
+                        else:
+                            box_factor = min(0.94, box_factor)
+                else:
+                    # Healesville, Richmond Straight, Murray Bridge Straight:
+                    # Inside rail (Box 1) and outside fence (Box 8) provide visual guide rails.
+                    if m["box"] in (1, 8):
+                        box_factor = max(1.15, box_factor)
+                    elif m["box"] in (4, 5):
+                        box_factor = min(0.92, box_factor)
+
+                # Straight Track Debutante / Circular-to-Straight Transition Check:
+                # Dogs with extensive circular career starts (>=3) but ZERO straight starts often race greenly
+                # without physical bends to guide their momentum.
+                if m.get("straight_starts", 0) == 0 and m.get("career_starts", 0) >= 3:
+                    box_factor = min(0.90, box_factor * 0.90)
 
 
             # Maiden / Sparse Field Geometry Dynamics
@@ -2729,16 +2766,43 @@ class GreyhoundAnalytics:
             # 5. Box Draw Camber & Runway (0 - 15 pts)
             box = r.get("box", 1)
             track_upper = (track_name or "").upper()
-            if box == 1:
-                score += 12.0
-                reasons.append("Inside Rail Advantage (Box 1)")
-            elif box == 8:
-                score += 12.0
-                reasons.append("Clear Outer Swoop Runway (Box 8)")
-                if any(t in track_upper for t in ["SALE", "SHEPPARTON", "BALLARAT", "GAWLER"]):
-                    score += 5.0
-            elif box == 2:
-                score += 6.0
+            if "CAPALABA" in track_upper:
+                # Capalaba: Outside lure mounted on grandstand fence (Box 8)
+                if box in (7, 8):
+                    score += 15.0
+                    reasons.append(f"Outside Lure Rail Advantage (Box {box})")
+                elif box == 6:
+                    score += 10.0
+                    reasons.append("Clear Outer Runway (Box 6)")
+                elif box in (1, 2):
+                    score += 2.0
+            else:
+                if box == 1:
+                    score += 12.0
+                    reasons.append("Inside Rail Advantage (Box 1)")
+                elif box == 8:
+                    score += 12.0
+                    reasons.append("Clear Outer Swoop Runway (Box 8)")
+                    if any(t in track_upper for t in ["SALE", "SHEPPARTON", "BALLARAT", "GAWLER"]):
+                        score += 5.0
+                elif box == 2:
+                    score += 6.0
+
+            # 5b. Proven Track Engine / Motor Capability (0 - 20 pts)
+            min_field_time = min((cand.get("best_time") for cand in sorted_predictions if cand.get("best_time")), default=None)
+            if r.get("best_time") and min_field_time and not r.get("is_synthesized_pb"):
+                pb_delta = r["best_time"] - min_field_time
+                if pb_delta <= 0.35:
+                    score += 20.0
+                    reasons.append(f"Proven Track Engine (PB {r['best_time']:.2f}s)")
+                elif pb_delta <= 0.50:
+                    score += 10.0
+
+            # 5c. Major Class Drop (0 - 15 pts)
+            dog_class = r.get("avg_recent_grade")
+            if dog_class and dog_class <= 2.5:
+                score += 16.0
+                reasons.append("Major Class Drop from Free For All (FFA)")
 
             # 6. Recent Form Consistency (0 - 12 pts)
             form = str(r.get("form_string") or "")
@@ -2747,16 +2811,19 @@ class GreyhoundAnalytics:
                 score += 10.0
                 reasons.append(f"Recent Placings ({form})")
 
-            # 7. Straight Track & Maiden Racecraft (0 - 21 pts)
+            # 7. Straight Track Racecraft (0 - 21 pts)
             is_straight_trk = any(st in track_upper for st in ["STRAIGHT", "CAPALABA", "HEALESVILLE"])
             st_starts = r.get("straight_starts", 0)
             c_starts = r.get("career_starts", 0)
-            if is_straight_trk and (st_starts >= 2 or c_starts >= 3):
-                score += 16.0
-                reasons.append("Proven Straight Racecraft")
-                if "CAPALABA" in track_upper:
-                    score += 5.0
-                    reasons.append("Grass Turf Experience")
+            if is_straight_trk:
+                if st_starts >= 2:
+                    score += 14.0
+                    reasons.append("Proven Straight Racecraft")
+                    if "CAPALABA" in track_upper:
+                        score += 4.0
+                        reasons.append("Grass Turf Experience")
+                elif st_starts == 0 and c_starts >= 3:
+                    score -= 12.0  # Unproven circular runner down straight
             elif is_straight_trk and c_starts == 0:
                 score -= 10.0
 
