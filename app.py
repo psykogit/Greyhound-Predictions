@@ -266,6 +266,15 @@ def get_race_analysis(race_id: int):
     analytics = GreyhoundAnalytics()
     predictions = analytics.predict_race_probabilities(race_id)
 
+    # Extract 5th dog / Value Roughie
+    value_roughie = next((p for p in predictions if p.get("is_roughie")), None)
+    top4_boxes = [p["box"] for p in predictions[:4]]
+    top5_boxes = list(top4_boxes)
+    if value_roughie and value_roughie["box"] not in top4_boxes:
+        top5_boxes.append(value_roughie["box"])
+    elif len(predictions) >= 5:
+        top5_boxes.append(predictions[4]["box"])
+
     raw_tips = race["expert_tips"] if race and "expert_tips" in race.keys() else None
     parsed_tips = [int(x.strip()) for x in raw_tips.split(",") if x.strip().isdigit()] if raw_tips else None
 
@@ -283,7 +292,10 @@ def get_race_analysis(race_id: int):
         },
         "weather": dict(weather) if weather else None,
         "scratched": scratched_runners,
-        "predictions": predictions
+        "predictions": predictions,
+        "value_roughie": value_roughie,
+        "top4_boxes": top4_boxes,
+        "top5_boxed": top5_boxes
     }
 
 

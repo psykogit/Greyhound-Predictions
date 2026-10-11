@@ -285,15 +285,16 @@
           </div>
           
           <!-- Top 4 Predicted Podium -->
+          <!-- Top 4 Predicted Podium + 5th Dog Value Roughie -->
           <div id="top4-podium-card" class="hidden card p-5 border-navy-500">
             <div class="flex items-center justify-between border-b border-navy-500 pb-3 mb-4">
               <h3 class="text-[11px] font-bold text-slate-200 tracking-wider uppercase flex items-center space-x-2">
                 <i class="fa-solid fa-trophy text-amber-400"></i>
-                <span>Model Top 4 Predicted Finish (Order of Placings)</span>
+                <span>Model Top 4 Finish + 5th Dog Value Roughie</span>
               </h3>
-              <div class="text-[10px] text-slate-400 flex items-center space-x-1"><i class="fa-solid fa-chart-line"></i><span>Projected First 4 Finish</span></div>
+              <div class="text-[10px] text-slate-400 flex items-center space-x-1"><i class="fa-solid fa-fire text-amber-400"></i><span>Projected First 4 & Box 5 Exotic Injection</span></div>
             </div>
-            <div id="top4-podium-grid" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div id="top4-podium-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
               <!-- Rendered by JS -->
             </div>
           </div>
@@ -1009,6 +1010,7 @@ ${finishBadge}
               </button>
               ${p.expert_tip_rank ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50" title="TheDogs Expert Tip #${p.expert_tip_rank}">Tip #${p.expert_tip_rank}</span>` : ''}
               ${p.tie_breaker_applied ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-600/50" title="${p.tie_breaker_note || 'Deadlock broken via Expert Consensus'}"><i class="fa-solid fa-scale-balanced mr-0.5"></i>Tie-Break</span>` : ''}
+              ${p.is_roughie ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/60 shadow-sm shadow-amber-950/50 inline-flex items-center" title="${(p.roughie_insight || 'Recommended 5th Dog Value Roughie for First 4 & Trifecta').replace(/"/g, '&quot;')}"><i class="fa-solid fa-fire mr-1 text-amber-400"></i>5th Dog Roughie</span>` : ''}
             </div>
           </td>
           <td class="p-3 text-slate-400 truncate max-w-[130px]">${p.trainer || '-'}</td>
@@ -1399,7 +1401,7 @@ ${finishBadge}
             { pos: '4th', label: '4TH PLACE', badge: 'bg-blue-900 text-blue-200', border: 'border-blue-700/50' }
           ];
 
-          top4Grid.innerHTML = data.predictions.slice(0, 4).map((p, idx) => {
+          let gridHtml = data.predictions.slice(0, 4).map((p, idx) => {
             const meta = placeLabels[idx] || { pos: `${idx+1}th`, label: 'TOP 4', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
             const boxBadgeClass = `badge-box-${p.box || 1}`;
             
@@ -1435,6 +1437,43 @@ ${finishBadge}
               </div>
             `;
           }).join('');
+
+          // Append 5th Dog Value Roughie Card
+          const roughie = data.value_roughie || data.predictions.find(p => p.is_roughie);
+          if (roughie) {
+            const rBoxClass = `badge-box-${roughie.box || 1}`;
+            const rSafeName = (roughie.dog_name || '').replace(/"/g, '&quot;');
+            const rOdds = roughie.best_odds || roughie.sportsbet_odds || roughie.market_odds;
+            const rOddsStr = rOdds ? '$' + Number(rOdds).toFixed(2) : '$' + Number(roughie.fair_win_odds || 0).toFixed(2);
+            const rTags = (roughie.upside_tags || roughie.roughie_tags || []).slice(0, 2).map(t => `<span class="bg-amber-950/80 text-amber-300 border border-amber-600/40 px-1 py-0.5 rounded text-[8px] font-bold truncate max-w-[110px] block">${t}</span>`).join('');
+            
+            gridHtml += `
+              <div class="bg-gradient-to-b from-[#1a1510] to-[#16212d] p-3 rounded-lg border-2 border-amber-500 shadow-lg shadow-amber-950/40 flex flex-col justify-between ring-1 ring-amber-400/50 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[10px] font-black px-1.5 py-0.5 rounded bg-gradient-to-r from-amber-500 to-orange-500 text-black flex items-center shadow uppercase tracking-wider">
+                    <i class="fa-solid fa-fire mr-1 text-[9px]"></i>5th Dog Roughie
+                  </span>
+                  <span class="font-mono text-amber-300 font-extrabold text-xs bg-amber-950/90 px-1.5 py-0.5 rounded border border-amber-500/60">${rOddsStr}</span>
+                </div>
+                <div class="flex items-center space-x-2 my-1">
+                  <span class="inline-block w-10 h-10 flex items-center justify-center font-extrabold text-xl rounded-md shadow-md ${rBoxClass}">${roughie.box || '?'}</span>
+                  <div class="min-w-0 flex-1">
+                    <button onclick="openDogDossier(this.dataset.id, this.dataset.name)" data-id="${roughie.dog_id || 0}" data-name="${rSafeName}" class="font-bold text-amber-200 text-xs truncate hover:text-white text-left transition cursor-pointer underline decoration-dotted decoration-amber-500 block w-full">${roughie.dog_name}</button>
+                    <span class="text-[9px] text-amber-400/90 font-mono block">Roughie Score: <b>${roughie.roughie_score || '--'}</b></span>
+                  </div>
+                </div>
+                <div class="mt-1 flex flex-wrap gap-1 mb-1">
+                  ${rTags}
+                </div>
+                <div class="mt-1 flex items-center justify-between text-[10px] text-slate-300 font-mono border-t border-amber-900/60 pt-1">
+                  <span class="text-amber-300">Win: ${(roughie.model_win_prob * 100).toFixed(1)}%</span>
+                  <span class="text-purple-300 font-bold">Top4: ${((roughie.model_top4_prob || 0) * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            `;
+          }
+
+          top4Grid.innerHTML = gridHtml;
         } else {
           top4Card.classList.add('hidden');
         }

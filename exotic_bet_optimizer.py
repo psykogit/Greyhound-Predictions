@@ -412,12 +412,25 @@ class ExoticBetOptimizer:
             t4["tier_description"] = "24 combinations • High flexi dividend • Primary contenders"
             tickets["first_4_tickets"].append(t4)
 
-        # Tier 2: 5-Dog Boxed First 4 (Balanced Value Box - 120 combos)
-        if len(top_5_boxes) == 5:
-            t5 = self.build_boxed_ticket("first_4", top_5_boxes, win_probs, stake=f4_stake, runner_names=runner_names)
+        # Find #1 Value Roughie (5th dog) from model predictions
+        roughie = next((p for p in preds if p.get("is_roughie")), None)
+        if roughie and roughie["box"] not in top_4_boxes:
+            value_5_boxes = list(top_4_boxes) + [roughie["box"]]
+            roughie_tag = f"Box {roughie['box']} ({roughie['dog_name']})"
+        elif len(top_5_boxes) == 5:
+            value_5_boxes = top_5_boxes
+            roughie_tag = f"Box {top_5_boxes[4]} ({runner_names.get(top_5_boxes[4], '')})"
+        else:
+            value_5_boxes = []
+            roughie_tag = ""
+
+        # Tier 2: 5-Dog Boxed First 4 (Top 4 + Value Roughie - 120 combos)
+        if len(value_5_boxes) == 5:
+            t5 = self.build_boxed_ticket("first_4", value_5_boxes, win_probs, stake=f4_stake, runner_names=runner_names)
             t5["tier"] = "TIER_2_BALANCED"
-            t5["tier_label"] = "Tier 2: 5-Dog Box (Balanced Value)"
-            t5["tier_description"] = "120 combinations • ~42% strike rate • Strong place protection"
+            t5["tier_label"] = f"Tier 2: 5-Dog Box (Top 4 + Roughie {roughie_tag})"
+            t5["tier_description"] = f"120 combinations • Includes dangerous 5th dog {roughie_tag} to catch massive upset dividends"
+            t5["roughie_included"] = roughie_tag
             tickets["first_4_tickets"].append(t5)
 
         # Tier 3: 6-Dog Boxed First 4 (Maximum Coverage - 360 combos)

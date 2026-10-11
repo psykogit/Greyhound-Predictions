@@ -2577,13 +2577,159 @@ class GreyhoundAnalytics:
                 "fair_top4_odds": fair_top4_odds,
                 "edge": edge_win,
                 "sportsbet_edge": edge_sb,
+                "speed_rank": sr.get("speed_rank"),
+                "run_home_rank": sr.get("run_home_rank"),
+                "split_1": sr.get("split_1"),
+                "best_time": sr.get("best_time"),
                 "dsls": sr.get("dsls"),
                 "last_weight": sr.get("last_weight"),
                 "starts_count": sr.get("starts_count", 0),
                 "career_starts": sr.get("career_starts", 0)
             })
 
-        return sorted(results, key=lambda x: x["model_win_prob"], reverse=True)
+        sorted_results = sorted(results, key=lambda x: x["model_win_prob"], reverse=True)
+
+        # Identify #1 Value Roughie (5th dog that might get up)
+        roughie_info = self.select_value_roughie(sorted_results, track_name=track_name, distance=distance)
+        if roughie_info:
+            roughie_box = roughie_info["box"]
+            for r in sorted_results:
+                if r["box"] == roughie_box:
+                    r["is_roughie"] = True
+                    r["roughie_score"] = roughie_info["roughie_score"]
+                    r["roughie_insight"] = roughie_info["insight"]
+                    r["roughie_tags"] = roughie_info["upside_tags"]
+                    r["upside_tags"] = roughie_info["upside_tags"]
+                else:
+                    r["is_roughie"] = False
+        else:
+            for r in sorted_results:
+                r["is_roughie"] = False
+
+        return sorted_results
+
+    @staticmethod
+    def select_value_roughie(
+        sorted_predictions: List[Dict[str, Any]],
+        track_name: str = "",
+        distance: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Identifies the optimal 'Value Roughie' (5th Dog) outside the primary Top 4 contenders.
+        Evaluates candidates on:
+        1. Top-4 Podium Projection (Harville-adjusted placing probability)
+        2. Early Speed & Front-Running Threat (split 1 sectional rank)
+        3. Closing Run-Home Stamina (swooper capability)
+        4. Box Camber & Runway Geometry (Boxes 1 & 8, outer sweep arcs)
+        5. Value Juice & Overlay (+EV odds discrepancy)
+        6. Recent Form Placings
+        """
+        if not sorted_predictions or len(sorted_predictions) <= 4:
+            return None
+
+        candidates = sorted_predictions[4:]  # Runners outside top 4
+
+        scored_candidates = []
+        for r in candidates:
+            score = 0.0
+            reasons = []
+
+            # 1. Base Top-4 Capability (0 - 45 pts)
+            t4_prob = r.get("model_top4_prob", 0.0)
+            score += min(45.0, t4_prob * 90.0)
+            if t4_prob >= 0.35:
+                reasons.append(f"{round(t4_prob * 100)}% Top-4 Projection")
+
+            # 2. Market Price & Overlay Value (0 - 25 pts)
+            odds = r.get("best_odds") or r.get("sportsbet_odds") or r.get("market_odds") or 0.0
+            edge = r.get("edge") or r.get("sportsbet_edge") or 0.0
+            if odds >= 14.0:
+                score += 15.0
+                reasons.append(f"Big Value (${odds:.2f})")
+            elif odds >= 8.0:
+                score += 10.0
+                reasons.append(f"Value Odds (${odds:.2f})")
+            elif odds >= 5.0:
+                score += 5.0
+            if edge and edge > 0.015:
+                score += 10.0
+                reasons.append(f"+EV Overlay (+{round(edge * 100, 1)}%)")
+
+            # 3. Early Speed / Front-Runner Threat (0 - 25 pts)
+            sp_rank = r.get("speed_rank", 5)
+            style = (r.get("running_style") or "").upper()
+            if sp_rank <= 2:
+                score += 22.0
+                reasons.append("Elite Early Speed (Rank #1-2)")
+            elif sp_rank <= 3:
+                score += 14.0
+                reasons.append("Fast Split 1 Pace")
+            elif "FR" in style or "FM" in style or "RR" in style:
+                score += 5.0
+
+            # 4. Closing Run-Home Stamina / Swooper (0 - 18 pts)
+            rh_rank = r.get("run_home_rank", 5)
+            if rh_rank <= 2:
+                score += 16.0
+                reasons.append("Strong Closing Run-Home")
+            elif rh_rank <= 3:
+                score += 8.0
+
+            # 5. Box Draw Camber & Runway (0 - 15 pts)
+            box = r.get("box", 1)
+            track_upper = (track_name or "").upper()
+            if box == 1:
+                score += 12.0
+                reasons.append("Inside Rail Advantage (Box 1)")
+            elif box == 8:
+                score += 12.0
+                reasons.append("Clear Outer Swoop Runway (Box 8)")
+                if any(t in track_upper for t in ["SALE", "SHEPPARTON", "BALLARAT", "GAWLER"]):
+                    score += 5.0
+            elif box == 2:
+                score += 6.0
+
+            # 6. Recent Form Consistency (0 - 12 pts)
+            form = str(r.get("form_string") or "")
+            recent_places = sum(1 for ch in form[-3:] if ch in "1234")
+            if recent_places >= 2:
+                score += 10.0
+                reasons.append(f"Recent Placings ({form})")
+
+            scored_candidates.append({
+                "runner": r,
+                "roughie_score": round(score, 1),
+                "reasons": reasons,
+                "odds": odds
+            })
+
+        if not scored_candidates:
+            return None
+
+        scored_candidates.sort(key=lambda x: x["roughie_score"], reverse=True)
+        best = scored_candidates[0]
+        r = best["runner"]
+
+        reasons_summary = " • ".join(best["reasons"][:3]) if best["reasons"] else "High place capability"
+        insight = f"Recommended 5th dog to add to First 4 & Trifecta box tickets. {reasons_summary}."
+
+        return {
+            "box": r["box"],
+            "dog_name": r["dog_name"],
+            "dog_id": r.get("dog_id"),
+            "trainer": r.get("trainer"),
+            "best_odds": best["odds"] if best["odds"] > 0 else None,
+            "sportsbet_odds": r.get("sportsbet_odds"),
+            "market_odds": r.get("market_odds"),
+            "model_win_prob": r.get("model_win_prob", 0.0),
+            "model_place_prob": r.get("model_place_prob", 0.0),
+            "model_top4_prob": r.get("model_top4_prob", 0.0),
+            "exotic_score": r.get("exotic_score", 0.0),
+            "roughie_score": best["roughie_score"],
+            "upside_tags": best["reasons"][:4],
+            "insight": insight,
+            "rank_in_field": next((idx + 1 for idx, p in enumerate(sorted_predictions) if p["box"] == r["box"]), 5)
+        }
 
 
 
