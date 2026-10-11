@@ -155,11 +155,12 @@ class ExoticBetOptimizer:
         self,
         race_id: int,
         selected_boxes: Optional[List[int]] = None,
-        custom_stake: float = 12.0
+        custom_stake: float = 6.0
     ) -> Dict[str, Any]:
         """
         Calculates precise projected TAB / Pari-Mutuel tote odds, dividend ranges,
         break-even thresholds, and expected value for a 5-dog boxed First 4 ticket.
+        Defaults to 5% flexi stake ($6.00 on 120 combos).
         Enables punters to verify whether their stake is mathematically positive (+EV).
         """
         preds = self.analytics.predict_race_probabilities(race_id)
@@ -316,6 +317,168 @@ class ExoticBetOptimizer:
             "verdict_note": verdict_note,
             "top_combinations_preview": top5_preview,
             "summary": f"5-Dog Boxed First 4 ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
+        }
+
+    def estimate_boxed_trifecta_odds(
+        self,
+        race_id: int,
+        selected_boxes: Optional[List[int]] = None,
+        custom_stake: float = 1.20
+    ) -> Dict[str, Any]:
+        """
+        Calculates precise projected TAB / Pari-Mutuel tote odds, dividend ranges,
+        break-even thresholds, and expected value for a 4-dog boxed Trifecta ticket.
+        Defaults to 5% flexi stake ($1.20 on 24 combos).
+        Enables punters to verify whether their stake is mathematically positive (+EV).
+        """
+        preds = self.analytics.predict_race_probabilities(race_id)
+        if not preds:
+            raise ValueError(f"No active runners available for race {race_id}")
+
+        # Fetch race details
+        c = self.conn.cursor()
+        c.execute("""
+            SELECT r.race_number, r.distance, m.track_name, m.meeting_date
+            FROM races r
+            JOIN meetings m ON r.meeting_id = m.id
+            WHERE r.id = ?
+        """, (race_id,))
+        race_info = c.fetchone()
+        track = race_info["track_name"] if race_info else "Unknown"
+        race_num = race_info["race_number"] if race_info else 0
+        dist = race_info["distance"] if race_info else 0
+
+        # Auto-detect Top 4 contenders if not provided
+        if not selected_boxes:
+            if len(preds) >= 4:
+                selected_boxes = [p["box"] for p in preds[:4]]
+            else:
+                selected_boxes = [p["box"] for p in preds]
+
+        win_probs = {p["box"]: p["model_win_prob"] for p in preds}
+        runner_names = {p["box"]: p["dog_name"] for p in preds}
+        market_odds = {
+            p["box"]: float(p.get("best_odds") or p.get("sportsbet_odds") or p.get("market_odds") or p.get("fair_win_odds", 10.0))
+            for p in preds
+        }
+
+        # Market-implied normalized probabilities for pool dividend estimation
+        tot_mkt_p = sum(1.0 / max(1.01, market_odds.get(b, 10.0)) for b in market_odds)
+        mkt_probs = {b: (1.0 / max(1.01, market_odds.get(b, 10.0))) / tot_mkt_p for b in market_odds}
+
+        combos = math.perm(len(selected_boxes), 3)
+        perms = list(itertools.permutations(selected_boxes, 3))
+        flexi_ratio = custom_stake / max(1, combos)
+        flexi_pct = round(flexi_ratio * 100.0, 2)
+
+        div_items = []
+        tot_prob = 0.0
+
+        for perm in perms:
+            b1, b2, b3 = perm
+            # Model probability
+            p1 = win_probs.get(b1, 0.01)
+            p2 = win_probs.get(b2, 0.01) / max(0.001, 1.0 - p1)
+            p3 = win_probs.get(b3, 0.01) / max(0.001, 1.0 - p1 - win_probs.get(b2, 0.01))
+            prob = max(1e-7, p1 * p2 * p3)
+            tot_prob += prob
+
+            # Market probability
+            mp1 = mkt_probs.get(b1, 0.01)
+            mp2 = mkt_probs.get(b2, 0.01) / max(0.001, 1.0 - mp1)
+            mp3 = mkt_probs.get(b3, 0.01) / max(0.001, 1.0 - mp1 - mkt_probs.get(b2, 0.01))
+            mkt_prob = max(1e-7, mp1 * mp2 * mp3)
+
+            # Standard TAB Trifecta takeout is ~21% (0.79 payout factor)
+            tote_div = round(0.79 / mkt_prob, 2)
+            payout = round(tote_div * flexi_ratio, 2)
+
+            div_items.append({
+                "combination": list(perm),
+                "runner_names": [runner_names.get(b, f"Box {b}") for b in perm],
+                "model_prob": prob,
+                "projected_dividend": tote_div,
+                "projected_payout": payout,
+                "is_profitable": payout > custom_stake
+            })
+
+        div_items.sort(key=lambda x: x["projected_dividend"])
+        min_div = div_items[0]["projected_dividend"] if div_items else 0.0
+        max_div = div_items[-1]["projected_dividend"] if div_items else 0.0
+        median_div = div_items[len(div_items)//2]["projected_dividend"] if div_items else 0.0
+        weighted_div = sum(d["projected_dividend"] * d["model_prob"] for d in div_items) / max(1e-6, tot_prob) if div_items else 0.0
+
+        proj_min_payout = round(min_div * flexi_ratio, 2)
+        proj_avg_payout = round(weighted_div * flexi_ratio, 2)
+        proj_max_payout = round(max_div * flexi_ratio, 2)
+        proj_net_profit = round(proj_avg_payout - custom_stake, 2)
+        expected_value = round((tot_prob * proj_avg_payout) - custom_stake, 2)
+        profitable_count = sum(1 for d in div_items if d["is_profitable"])
+        break_even_div = round(combos * 1.0, 2)
+
+        # Top 5 most likely finish combinations
+        likely_sorted = sorted(div_items, key=lambda x: x["model_prob"], reverse=True)
+        top5_preview = [
+            {
+                "order": "-".join(str(x) for x in d["combination"]),
+                "names": d["runner_names"],
+                "probability_pct": round(d["model_prob"] * 100.0, 2),
+                "dividend": d["projected_dividend"],
+                "payout": d["projected_payout"],
+                "profit": round(d["projected_payout"] - custom_stake, 2)
+            }
+            for d in likely_sorted[:5]
+        ]
+
+        # Recommendation verdict
+        if expected_value >= 2.0:
+            verdict = "STRONG VALUE (+EV)"
+            verdict_note = f"Highly attractive overlay. Model projects an expected net return of +${expected_value:.2f} on a ${custom_stake:.2f} ticket."
+        elif expected_value > 0.0:
+            verdict = "POSITIVE (+EV)"
+            verdict_note = f"Positive mathematical expectation. Projected return exceeds ${custom_stake:.2f} outlay."
+        else:
+            verdict = "MARGINAL / DEFENSIVE"
+            verdict_note = f"Dominated by low-paying favorites. Consider reducing stake or anchoring top pick."
+
+        return {
+            "race_id": race_id,
+            "track_name": track,
+            "race_number": race_num,
+            "distance": dist,
+            "selected_boxes": selected_boxes,
+            "selected_runners": [
+                {
+                    "box": b,
+                    "name": runner_names.get(b, f"Box {b}"),
+                    "odds": market_odds.get(b, 0.0),
+                    "win_prob_pct": round(win_probs.get(b, 0.0) * 100.0, 1)
+                }
+                for b in selected_boxes
+            ],
+            "combinations_count": combos,
+            "stake": custom_stake,
+            "flexi_percent": flexi_pct,
+            "hit_probability": round(tot_prob, 4),
+            "hit_probability_pct": round(tot_prob * 100.0, 1),
+            "break_even_dividend": break_even_div,
+            "break_even_note": f"Any Trifecta dividend above ${break_even_div:.2f} guarantees a positive net profit on this {combos}-combination ticket.",
+            "est_min_dividend": round(min_div, 2),
+            "est_avg_dividend": round(weighted_div, 2),
+            "est_median_dividend": round(median_div, 2),
+            "est_max_dividend": round(max_div, 2),
+            "projected_min_payout": proj_min_payout,
+            "projected_avg_payout": proj_avg_payout,
+            "projected_max_payout": proj_max_payout,
+            "projected_net_profit": proj_net_profit,
+            "projected_roi_pct": round((proj_net_profit / max(0.5, custom_stake)) * 100.0, 1),
+            "expected_value": expected_value,
+            "is_positive_ev": expected_value > 0,
+            "profitable_combinations_pct": round((profitable_count / max(1, combos)) * 100.0, 1),
+            "verdict": verdict,
+            "verdict_note": verdict_note,
+            "top_combinations_preview": top5_preview,
+            "summary": f"4-Dog Boxed Trifecta ({len(selected_boxes)} dogs, {combos} combos) @ {flexi_pct}% Flexi (${custom_stake:.2f} stake) | Est Avg Div: ${weighted_div:.2f} (Pays ${proj_avg_payout:.2f}) | +EV: ${expected_value:.2f}"
         }
 
     def build_standout_ticket(
@@ -572,9 +735,9 @@ class ExoticBetOptimizer:
         banker_box = top_pick["box"]
         contender_boxes = top_boxes[1:5] if len(top_boxes) >= 5 else top_boxes[1:]
 
-        # Standard staking options
-        f4_stake = custom_stake or 12.0
-        tri_stake = custom_stake or 12.0
+        # Standard staking options (Default 5% Flexi for both: $6.00 for 120 combos, $1.20 for 24 combos)
+        f4_stake = custom_stake or 6.0
+        tri_stake = custom_stake or 1.20
 
         tickets: Dict[str, Any] = {
             "race_id": race_id,
@@ -604,7 +767,8 @@ class ExoticBetOptimizer:
             "first_4_tickets": [],
             "trifecta_tickets": [],
             "dutching_recommendations": [],
-            "boxed_first4_odds_estimate": None
+            "boxed_first4_odds_estimate": None,
+            "boxed_trifecta_odds_estimate": None
         }
 
         # --- 1. MULTI-TIERED FIRST 4 TICKETS ---
@@ -681,6 +845,12 @@ class ExoticBetOptimizer:
             tickets["trifecta_tickets"].append(
                 self.build_boxed_ticket("trifecta", top_4_boxes, win_probs, stake=tri_stake, runner_names=runner_names)
             )
+            try:
+                tickets["boxed_trifecta_odds_estimate"] = self.estimate_boxed_trifecta_odds(
+                    race_id, selected_boxes=top_4_boxes, custom_stake=tri_stake
+                )
+            except Exception:
+                pass
 
         # Option B: 3-Dog Boxed Trifecta (Top 3)
         if len(top_3_boxes) >= 3:

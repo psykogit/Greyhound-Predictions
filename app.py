@@ -278,14 +278,21 @@ def get_race_analysis(race_id: int):
     raw_tips = race["expert_tips"] if race and "expert_tips" in race.keys() else None
     parsed_tips = [int(x.strip()) for x in raw_tips.split(",") if x.strip().isdigit()] if raw_tips else None
 
-    # Estimate 5-Dog Boxed First 4 Odds & Staking Payouts
+    # Estimate 5-Dog Boxed First 4 & 4-Dog Boxed Trifecta Odds & Staking Payouts (Default 5% Flexi)
     from exotic_bet_optimizer import ExoticBetOptimizer
     f4_odds_estimate = None
+    tri_odds_estimate = None
     try:
-        f4_opt = ExoticBetOptimizer()
-        f4_odds_estimate = f4_opt.estimate_boxed_first4_odds(race_id, selected_boxes=top5_boxes, custom_stake=12.0)
+        opt = ExoticBetOptimizer()
+        f4_odds_estimate = opt.estimate_boxed_first4_odds(race_id, selected_boxes=top5_boxes, custom_stake=6.0)
     except Exception as e:
         logger.warning(f"Failed to estimate First 4 odds for race {race_id}: {e}")
+
+    try:
+        opt = ExoticBetOptimizer()
+        tri_odds_estimate = opt.estimate_boxed_trifecta_odds(race_id, selected_boxes=top4_boxes, custom_stake=1.20)
+    except Exception as e:
+        logger.warning(f"Failed to estimate Trifecta odds for race {race_id}: {e}")
 
     return {
         "race": {
@@ -305,21 +312,37 @@ def get_race_analysis(race_id: int):
         "value_roughie": value_roughie,
         "top4_boxes": top4_boxes,
         "top5_boxed": top5_boxes,
-        "boxed_first4_estimate": f4_odds_estimate
+        "boxed_first4_estimate": f4_odds_estimate,
+        "boxed_trifecta_estimate": tri_odds_estimate
     }
 
 
 @app.get("/api/races/{race_id}/estimate-first4")
-def estimate_first4_odds_api(race_id: int, stake: float = 12.0, boxes: Optional[str] = None):
+def estimate_first4_odds_api(race_id: int, stake: float = 6.0, boxes: Optional[str] = None):
     """
     Returns live projected tote dividends, payouts, break-even targets,
-    and expected value for a 5-dog boxed First 4 ticket.
+    and expected value for a 5-dog boxed First 4 ticket (default 5% flexi = $6.00).
     """
     from exotic_bet_optimizer import ExoticBetOptimizer
     try:
         optimizer = ExoticBetOptimizer()
         selected_boxes = [int(b.strip()) for b in boxes.split(",") if b.strip().isdigit()] if boxes else None
         return optimizer.estimate_boxed_first4_odds(race_id, selected_boxes=selected_boxes, custom_stake=stake)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/races/{race_id}/estimate-trifecta")
+def estimate_trifecta_odds_api(race_id: int, stake: float = 1.20, boxes: Optional[str] = None):
+    """
+    Returns live projected tote dividends, payouts, break-even targets,
+    and expected value for a 4-dog boxed Trifecta ticket (default 5% flexi = $1.20).
+    """
+    from exotic_bet_optimizer import ExoticBetOptimizer
+    try:
+        optimizer = ExoticBetOptimizer()
+        selected_boxes = [int(b.strip()) for b in boxes.split(",") if b.strip().isdigit()] if boxes else None
+        return optimizer.estimate_boxed_trifecta_odds(race_id, selected_boxes=selected_boxes, custom_stake=stake)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

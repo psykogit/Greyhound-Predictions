@@ -299,18 +299,36 @@
             </div>
           </div>
 
-          <!-- 5-Dog Boxed First 4 Odds & Staking Matrix Card -->
+          <!-- Exotic Odds & Staking Matrix Card (Trifecta & First 4) -->
           <div id="first4-estimator-card" class="hidden card p-5 border-navy-500 bg-gradient-to-br from-[#121922] via-[#16212e] to-[#121922]">
-            <div class="flex flex-wrap items-center justify-between border-b border-navy-500 pb-3 mb-4 gap-2">
+            <div class="flex flex-wrap items-center justify-between border-b border-navy-500 pb-3 mb-4 gap-3">
               <div>
                 <h3 class="text-xs font-bold text-slate-100 tracking-wider uppercase flex items-center space-x-2">
                   <i class="fa-solid fa-calculator text-emerald-400"></i>
-                  <span>5-Dog Boxed First 4: Estimated Odds & Staking Matrix</span>
+                  <span>Exotic Odds & Staking Matrix (TAB Pari-Mutuel Estimates)</span>
                 </h3>
-                <p class="text-[10px] text-slate-400 mt-0.5">TAB Pari-Mutuel Dividend Model • 120 Combos (Top 4 Contenders + 5th Dog Value Roughie)</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Real-Time Dividend Simulations & +EV Staking Targets • Default 5% Flexi Stake</p>
               </div>
-              <div id="f4-verdict-container" class="flex items-center space-x-2">
-                <!-- Injected by JS -->
+
+              <!-- Tab Switcher & Verdict Badges -->
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="inline-flex rounded-lg bg-navy-800 p-0.5 border border-navy-600 text-xs shadow-inner">
+                  <button id="exotic-tab-tri" onclick="switchExoticTab('trifecta')" class="px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 bg-emerald-500 text-black shadow">
+                    <i class="fa-solid fa-bullseye text-[10px]"></i>
+                    <span>4-Dog Trifecta (5%)</span>
+                  </button>
+                  <button id="exotic-tab-f4" onclick="switchExoticTab('first4')" class="px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-layer-group text-purple-400 text-[10px]"></i>
+                    <span>5-Dog First 4 (5%)</span>
+                  </button>
+                  <button id="exotic-tab-both" onclick="switchExoticTab('both')" class="px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 text-slate-400 hover:text-white" title="Compare Trifecta and First 4 side-by-side">
+                    <i class="fa-solid fa-table-columns text-[10px]"></i>
+                    <span class="hidden sm:inline">Compare</span>
+                  </button>
+                </div>
+                <div id="f4-verdict-container" class="flex items-center space-x-2">
+                  <!-- Injected by JS -->
+                </div>
               </div>
             </div>
 
@@ -1707,8 +1725,8 @@ ${finishBadge}
           top4Card.classList.add('hidden');
         }
 
-        // Render 5-Dog Boxed First 4 Odds & Staking Estimator
-        renderFirst4OddsEstimator(data.boxed_first4_estimate, currentRaceId);
+        // Render Exotic Odds & Staking Matrix (4-Dog Boxed Trifecta & 5-Dog Boxed First 4)
+        renderExoticEstimators(data.boxed_trifecta_estimate, data.boxed_first4_estimate, currentRaceId);
 
         // Predictions Table
         document.getElementById('analysis-table-card').classList.remove('hidden');
@@ -1726,46 +1744,150 @@ ${finishBadge}
       }
     }
 
+    let currentTrifectaEst = null;
+    let currentF4Est = null;
+    let currentExoticTab = 'trifecta';
+
+    function switchExoticTab(tab) {
+      currentExoticTab = tab;
+      if (currentRaceId) {
+        renderExoticEstimators(currentTrifectaEst, currentF4Est, currentRaceId);
+      }
+    }
+
     function renderFirst4OddsEstimator(est, raceId) {
+      renderExoticEstimators(currentTrifectaEst, est, raceId);
+    }
+
+    function renderExoticEstimators(triEst, f4Est, raceId) {
+      currentTrifectaEst = triEst;
+      currentF4Est = f4Est;
+      currentRaceId = raceId;
+
       const card = document.getElementById('first4-estimator-card');
       if (!card) return;
-      if (!est || !est.selected_boxes || est.selected_boxes.length < 4) {
+
+      const hasTri = triEst && triEst.selected_boxes && triEst.selected_boxes.length >= 3;
+      const hasF4 = f4Est && f4Est.selected_boxes && f4Est.selected_boxes.length >= 4;
+
+      if (!hasTri && !hasF4) {
         card.classList.add('hidden');
         return;
       }
       card.classList.remove('hidden');
 
-      const isPos = est.is_positive_ev;
+      // Update tab styles
+      const triTab = document.getElementById('exotic-tab-tri');
+      const f4Tab = document.getElementById('exotic-tab-f4');
+      const bothTab = document.getElementById('exotic-tab-both');
+
+      if (triTab && f4Tab && bothTab) {
+        [triTab, f4Tab, bothTab].forEach(btn => {
+          btn.className = 'px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 text-slate-300 hover:text-white';
+        });
+        if (currentExoticTab === 'trifecta') {
+          triTab.className = 'px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 bg-emerald-500 text-black shadow';
+        } else if (currentExoticTab === 'first4') {
+          f4Tab.className = 'px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 bg-emerald-500 text-black shadow';
+        } else {
+          bothTab.className = 'px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 bg-emerald-500 text-black shadow';
+        }
+      }
+
+      // Verdict Container
+      const activeEst = currentExoticTab === 'trifecta' ? (triEst || f4Est) : (f4Est || triEst);
+      const isPos = activeEst && activeEst.is_positive_ev;
       const verdictColor = isPos ? 'from-emerald-600/30 to-teal-600/30 text-emerald-300 border-emerald-500/50' : 'from-amber-600/30 to-orange-600/30 text-amber-300 border-amber-500/50';
       const verdictIcon = isPos ? 'fa-check-circle' : 'fa-triangle-exclamation';
+      const verdictLabel = activeEst ? (activeEst.verdict || '+EV VERIFIED') : '+EV VERIFIED';
 
-      document.getElementById('f4-verdict-container').innerHTML = `
-        <span class="px-2.5 py-1 rounded text-[11px] font-mono font-bold bg-gradient-to-r ${verdictColor} border shadow-sm flex items-center space-x-1.5">
-          <i class="fa-solid ${verdictIcon}"></i>
-          <span>${est.verdict || '+EV VERIFIED'}</span>
-        </span>
-      `;
-
-      const boxesBadges = est.selected_boxes.map(b => `<span class="inline-flex items-center justify-center w-6 h-6 rounded font-bold text-xs badge-box-${b}">${b}</span>`).join(' ');
+      const verdictEl = document.getElementById('f4-verdict-container');
+      if (verdictEl) {
+        verdictEl.innerHTML = `
+          <span class="px-2.5 py-1 rounded text-[11px] font-mono font-bold bg-gradient-to-r ${verdictColor} border shadow-sm flex items-center space-x-1.5">
+            <i class="fa-solid ${verdictIcon}"></i>
+            <span>${verdictLabel}</span>
+          </span>
+        `;
+      }
 
       const content = document.getElementById('f4-estimator-content');
-      content.innerHTML = `
+      if (!content) return;
+
+      if (currentExoticTab === 'both' && hasTri && hasF4) {
+        content.innerHTML = `
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <div class="bg-black/20 p-3.5 rounded-xl border border-navy-600/60">
+              ${buildExoticWidgetHtml(triEst, raceId, 'trifecta')}
+            </div>
+            <div class="bg-black/20 p-3.5 rounded-xl border border-navy-600/60">
+              ${buildExoticWidgetHtml(f4Est, raceId, 'first4')}
+            </div>
+          </div>
+        `;
+      } else if (currentExoticTab === 'trifecta' && hasTri) {
+        content.innerHTML = buildExoticWidgetHtml(triEst, raceId, 'trifecta');
+      } else if (hasF4) {
+        content.innerHTML = buildExoticWidgetHtml(f4Est, raceId, 'first4');
+      } else if (hasTri) {
+        content.innerHTML = buildExoticWidgetHtml(triEst, raceId, 'trifecta');
+      }
+    }
+
+    function buildExoticWidgetHtml(est, raceId, type) {
+      if (!est) return '<div class="text-slate-500 text-xs p-4 text-center">Ticket not available</div>';
+
+      const isTri = type === 'trifecta';
+      const typeLabel = isTri ? '4-Dog Boxed Trifecta' : '5-Dog Boxed First 4';
+      const typeSub = isTri ? '24 Combos • Top 4 Contenders' : '120 Combos • Top 4 Contenders + 5th Roughie';
+      const boxesBadges = (est.selected_boxes || []).map(b => `<span class="inline-flex items-center justify-center w-6 h-6 rounded font-bold text-xs badge-box-${b}">${b}</span>`).join(' ');
+
+      // Stakes buttons:
+      // Trifecta combos = 24. Default 5% = $1.20
+      // First 4 combos = 120. Default 5% = $6.00
+      const triButtons = [
+        { stake: 1.20, label: '$1.20 (5%)' },
+        { stake: 2.40, label: '$2.40 (10%)' },
+        { stake: 4.80, label: '$4.80 (20%)' },
+        { stake: 12.00, label: '$12 (50%)' },
+        { stake: 24.00, label: '$24 (100%)' }
+      ];
+
+      const f4Buttons = [
+        { stake: 6.0, label: '$6 (5%)' },
+        { stake: 12.0, label: '$12 (10%)' },
+        { stake: 24.0, label: '$24 (20%)' },
+        { stake: 60.0, label: '$60 (50%)' },
+        { stake: 120.0, label: '$120 (100%)' }
+      ];
+
+      const buttons = isTri ? triButtons : f4Buttons;
+      const updateFn = isTri ? 'updateTrifectaStake' : 'updateF4Stake';
+      const inputId = isTri ? 'tri-custom-stake-input' : 'f4-custom-stake-input';
+      const stepVal = isTri ? '0.2' : '1';
+
+      const buttonsHtml = buttons.map(b => {
+        const isActive = Math.abs(Number(est.stake) - b.stake) < 0.05;
+        const btnCls = isActive
+          ? 'bg-emerald-500 text-black font-bold ring-1 ring-emerald-300'
+          : 'bg-navy-600 text-slate-200 hover:bg-navy-500';
+        return `<button onclick="${updateFn}(${raceId}, ${b.stake})" class="px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition ${btnCls}">${b.label}</button>`;
+      }).join(' ');
+
+      return `
         <!-- Top Row: Selected Dogs & Quick Stakes -->
         <div class="flex flex-wrap items-center justify-between gap-3 bg-[#0e141b] p-3 rounded-lg border border-navy-500 mb-4">
-          <div class="flex items-center space-x-2">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">5-Dog Box:</span>
+          <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider">${typeLabel}:</span>
             <div class="flex items-center space-x-1.5">${boxesBadges}</div>
-            <span class="text-[10px] text-slate-400 font-mono">(${est.combinations_count || 120} combos)</span>
+            <span class="text-[10px] text-slate-400 font-mono">(${est.combinations_count || (isTri ? 24 : 120)} combos)</span>
           </div>
-          <div class="flex items-center space-x-1.5">
+          <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
             <span class="text-[10px] font-bold text-slate-400 uppercase mr-1">Stake:</span>
-            <button onclick="updateF4Stake(${raceId}, 6.0)" class="f4-stake-btn px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition ${est.stake === 6.0 ? 'bg-emerald-500 text-black font-bold' : 'bg-navy-600 text-slate-200 hover:bg-navy-500'}">$6 (5%)</button>
-            <button onclick="updateF4Stake(${raceId}, 12.0)" class="f4-stake-btn px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition ${est.stake === 12.0 ? 'bg-emerald-500 text-black font-bold ring-1 ring-emerald-300' : 'bg-navy-600 text-slate-200 hover:bg-navy-500'}">$12 (10%)</button>
-            <button onclick="updateF4Stake(${raceId}, 24.0)" class="f4-stake-btn px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition ${est.stake === 24.0 ? 'bg-emerald-500 text-black font-bold' : 'bg-navy-600 text-slate-200 hover:bg-navy-500'}">$24 (20%)</button>
-            <button onclick="updateF4Stake(${raceId}, 60.0)" class="f4-stake-btn px-2.5 py-1 rounded text-[11px] font-mono font-semibold transition ${est.stake === 60.0 ? 'bg-emerald-500 text-black font-bold' : 'bg-navy-600 text-slate-200 hover:bg-navy-500'}">$60 (50%)</button>
+            ${buttonsHtml}
             <div class="flex items-center pl-1">
               <span class="text-xs text-slate-400 mr-1">$</span>
-              <input type="number" id="f4-custom-stake-input" value="${est.stake}" step="1" min="1" max="1000" class="w-16 px-1.5 py-0.5 rounded text-xs bg-navy-800 text-slate-100 border border-navy-500 font-mono text-center focus:border-emerald-400 focus:outline-none" onchange="updateF4Stake(${raceId}, this.value)" />
+              <input type="number" id="${inputId}" value="${est.stake}" step="${stepVal}" min="0.5" max="1000" class="w-16 px-1.5 py-0.5 rounded text-xs bg-navy-800 text-slate-100 border border-navy-500 font-mono text-center focus:border-emerald-400 focus:outline-none" onchange="${updateFn}(${raceId}, this.value)" />
             </div>
           </div>
         </div>
@@ -1806,8 +1928,8 @@ ${finishBadge}
               <span>Break-Even Threshold</span>
               <i class="fa-solid fa-scale-balanced text-teal-400"></i>
             </div>
-            <div class="font-mono text-xl font-black text-teal-300 mb-1">$${Number(est.break_even_dividend || 120).toFixed(2)}</div>
-            <div class="text-[11px] font-mono text-slate-300 pt-1.5 border-t border-navy-600 flex justify-between" title="${est.profitable_combinations_pct}% of the 120 permutations return more than your $${est.stake} stake">
+            <div class="font-mono text-xl font-black text-teal-300 mb-1">$${Number(est.break_even_dividend || (isTri ? 24 : 120)).toFixed(2)}</div>
+            <div class="text-[11px] font-mono text-slate-300 pt-1.5 border-t border-navy-600 flex justify-between" title="${est.profitable_combinations_pct}% of the ${est.combinations_count || (isTri ? 24 : 120)} permutations return more than your $${est.stake} stake">
               <span>Profitable Combos:</span>
               <span class="font-bold text-teal-300">${est.profitable_combinations_pct || 90}% of combos</span>
             </div>
@@ -1831,11 +1953,11 @@ ${finishBadge}
         <div class="bg-[#0f1620] p-3.5 rounded-lg border border-navy-500 mb-3">
           <div class="flex items-center justify-between text-[11px] font-bold text-slate-300 uppercase mb-2">
             <span>Projected Dividend Range (TAB Pool Distribution)</span>
-            <span class="text-[10px] font-normal text-slate-400"><i class="fa-solid fa-circle-info mr-1 text-teal-400"></i>Any dividend > $${Number(est.break_even_dividend || 120).toFixed(0)} guarantees profit</span>
+            <span class="text-[10px] font-normal text-slate-400"><i class="fa-solid fa-circle-info mr-1 text-teal-400"></i>Any dividend > $${Number(est.break_even_dividend || (isTri ? 24 : 120)).toFixed(0)} guarantees profit</span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
             <div class="bg-navy-800/80 p-2.5 rounded border border-navy-600">
-              <span class="text-[10px] text-slate-400 uppercase font-semibold block">Worst-Case Floor (Favorites 1-4)</span>
+              <span class="text-[10px] text-slate-400 uppercase font-semibold block">${isTri ? 'Worst-Case Floor (Favorites 1-2-3)' : 'Worst-Case Floor (Favorites 1-4)'}</span>
               <span class="font-mono text-sm font-bold text-slate-200 block">$${Number(est.est_min_dividend || 0).toFixed(2)} Tote</span>
               <span class="text-[10px] font-mono text-slate-400">Pays $${Number(est.projected_min_payout || 0).toFixed(2)} @ ${est.flexi_percent}%</span>
             </div>
@@ -1845,7 +1967,7 @@ ${finishBadge}
               <span class="text-[10px] font-mono text-emerald-200 font-bold">Pays $${Number(est.projected_avg_payout || 0).toFixed(2)} (+$${Number(est.projected_net_profit || 0).toFixed(2)} profit)</span>
             </div>
             <div class="bg-amber-950/40 p-2.5 rounded border border-amber-600/40">
-              <span class="text-[10px] text-amber-300 uppercase font-bold block">Upset Ceiling (Roughie Podiums)</span>
+              <span class="text-[10px] text-amber-300 uppercase font-bold block">${isTri ? 'Upset Ceiling (Longshot Trifecta)' : 'Upset Ceiling (Roughie Podiums)'}</span>
               <span class="font-mono text-base font-black text-amber-300 block">$${Number(est.est_max_dividend || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Tote</span>
               <span class="text-[10px] font-mono text-amber-200 font-bold">Pays $${Number(est.projected_max_payout || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
             </div>
@@ -1867,7 +1989,7 @@ ${finishBadge}
                 <thead>
                   <tr class="text-slate-400 border-b border-navy-600 pb-1">
                     <th class="py-1 px-2">Exact Order</th>
-                    <th class="py-1 px-2">Runners (1st → 2nd → 3rd → 4th)</th>
+                    <th class="py-1 px-2">Runners (${isTri ? '1st → 2nd → 3rd' : '1st → 2nd → 3rd → 4th'})</th>
                     <th class="py-1 px-2 text-right">Probability</th>
                     <th class="py-1 px-2 text-right">Tote Dividend</th>
                     <th class="py-1 px-2 text-right">Your Payout</th>
@@ -1893,13 +2015,26 @@ ${finishBadge}
       `;
     }
 
+    async function updateTrifectaStake(raceId, stakeVal) {
+      const stake = parseFloat(stakeVal) || 1.20;
+      try {
+        const res = await fetch(`/api/races/${raceId}/estimate-trifecta?stake=${stake}`);
+        if (res.ok) {
+          currentTrifectaEst = await res.json();
+          renderExoticEstimators(currentTrifectaEst, currentF4Est, raceId);
+        }
+      } catch (err) {
+        console.error('Failed to update Trifecta stake estimate:', err);
+      }
+    }
+
     async function updateF4Stake(raceId, stakeVal) {
-      const stake = parseFloat(stakeVal) || 12.0;
+      const stake = parseFloat(stakeVal) || 6.0;
       try {
         const res = await fetch(`/api/races/${raceId}/estimate-first4?stake=${stake}`);
         if (res.ok) {
-          const updatedEst = await res.json();
-          renderFirst4OddsEstimator(updatedEst, raceId);
+          currentF4Est = await res.json();
+          renderExoticEstimators(currentTrifectaEst, currentF4Est, raceId);
         }
       } catch (err) {
         console.error('Failed to update First 4 stake estimate:', err);
