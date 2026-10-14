@@ -29,4 +29,4 @@ COPY . .
 EXPOSE 8090
 
 # Command to run the application using Gunicorn with Uvicorn workers for 24/7 production stability
-CMD ["gunicorn", "app:app", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8090", "--timeout", "120"]
+CMD ["gunicorn", "app:app", "--workers", "1", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8090", "--timeout", "120"]

@@ -977,7 +977,7 @@ def export_historical_predictions():
     from export_predictions import get_actual_top4
 
     today_iso = datetime.now().strftime('%Y-%m-%d')
-    conn = sqlite3.connect('greyhound_racing.db')
+    conn = get_connection()
     c = conn.cursor()
 
     # 1. Auto-sync any finished races today into historical_predictions

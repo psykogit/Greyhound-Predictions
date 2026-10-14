@@ -10,7 +10,5 @@ services:
       - ./:/app
       # Keep the container's bytecode cache separate from host
       - /app/__pycache__
-      # Mount the database file so it persists securely across container rebuilds/restarts
-      - ./greyhound_racing.db:/app/greyhound_racing.db
     environment:
       - TZ=Australia/Perth

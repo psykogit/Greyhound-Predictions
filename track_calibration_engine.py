@@ -29,9 +29,9 @@ class TrackCalibrationEngine:
         self._memory_cache: Dict[str, Dict[str, Any]] = {}
 
     def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        from db import get_connection
+        from pathlib import Path
+        return get_connection(Path(self.db_path) if self.db_path else None)
 
     def _init_tables(self):
         """Ensure the dynamic calibration storage table exists."""
