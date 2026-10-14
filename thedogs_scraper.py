@@ -195,6 +195,20 @@ class TheDogsScraper:
                 or bool(re.search(r"\bSCR(?:ATCHED)?\b", sp_text))
             ) else 0
 
+            # Sex extraction: explicit gender/color code or weight fallback (<29.2kg bitch, >=29.2kg dog)
+            raw_row_text = row.get_text(" ", strip=True).upper()
+            sex_val = None
+            m_sex = re.search(r'\b(?:BK|BE|BD|F|WBD|WBK|DKBD|RBD|RF|WF|LTBD)?\s*(BITCH|FEMALE)\b', raw_row_text)
+            if not m_sex:
+                m_sex = re.search(r'\b(?:BK|BE|BD|F|WBD|WBK|DKBD|RBD|RF|WF|LTBD)\s+([DB])\b', raw_row_text)
+            if m_sex:
+                token = m_sex.group(1).upper()
+                sex_val = 'B' if token in ('BITCH', 'FEMALE', 'B') else 'D'
+            elif re.search(r'\b(?:BK|BE|BD|F|WBD|WBK|DKBD|RBD|RF|WF|LTBD)?\s*(DOG|MALE)\b', raw_row_text):
+                sex_val = 'D'
+            elif wgt:
+                sex_val = 'B' if wgt < 29.2 else 'D'
+
             runners.append({
                 "box_number": box_num,
                 "dog_name": dog_name,
@@ -203,6 +217,7 @@ class TheDogsScraper:
                 "form_string": form_string,
                 "finish_position": pos_num,
                 "weight": wgt,
+                "sex": sex_val,
                 "card_split_1": avg_sec1,
                 "split_1": actual_split_1,
                 "split_2": split_2,
@@ -282,6 +297,8 @@ class TheDogsScraper:
             dog_id = cursor.fetchone()["id"]
             if r.get("profile_url"):
                 cursor.execute("UPDATE greyhounds SET profile_url = ? WHERE id = ?", (r["profile_url"], dog_id))
+            if r.get("sex"):
+                cursor.execute("UPDATE greyhounds SET sex = COALESCE(sex, ?) WHERE id = ?", (r["sex"], dog_id))
 
             # Trainer
             trainer_id = None
@@ -293,13 +310,14 @@ class TheDogsScraper:
             # Race Runner
             cursor.execute("""
             INSERT INTO race_runners (
-                race_id, dog_id, trainer_id, box_number, weight, running_style,
+                race_id, dog_id, trainer_id, box_number, weight, sex, running_style,
                 form_string, finish_position, race_time, split_1, split_2, sp_odds, is_scratched, best_time, into_box, card_split_1
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(race_id, box_number) DO UPDATE SET
                 dog_id=excluded.dog_id,
                 trainer_id=excluded.trainer_id,
                 weight=COALESCE(excluded.weight, race_runners.weight),
+                sex=COALESCE(excluded.sex, race_runners.sex),
                 running_style=COALESCE(NULLIF(excluded.running_style, ''), race_runners.running_style),
                 form_string=COALESCE(NULLIF(excluded.form_string, ''), race_runners.form_string),
                 finish_position=COALESCE(excluded.finish_position, race_runners.finish_position),
@@ -317,6 +335,7 @@ class TheDogsScraper:
                 trainer_id,
                 r["box_number"],
                 r["weight"],
+                r.get("sex"),
                 r["running_style"],
                 r["form_string"],
                 r["finish_position"],

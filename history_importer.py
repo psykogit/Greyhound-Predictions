@@ -42,7 +42,8 @@ HEADER_ALIASES = {
     "sp_odds": ["sp_odds", "sp", "odds", "starting_price", "fixed_odds", "price", "spodds", "win_odds"],
     "running_style": ["running_style", "style", "run_style", "runningstyle"],
     "pir": ["pir", "in_running", "running_position", "inrunning"],
-    "is_scratched": ["is_scratched", "scratched", "scr"]
+    "is_scratched": ["is_scratched", "scratched", "scr"],
+    "sex": ["sex", "gender", "dog_gender", "dog_sex", "bitch_dog"]
 }
 
 
@@ -322,8 +323,22 @@ class HistoryImporter:
                         trainer_id = t_row["id"] if isinstance(t_row, sqlite3.Row) else t_row[0]
                         trainer_cache[t_norm] = trainer_id
 
-            # 6. Runner Metrics
+            # 6. Runner Metrics & Sex Normalization
             weight = clean_numeric(row.get("weight"))
+            raw_sex = clean_text(row.get("sex") or row.get("gender") or row.get("dog_sex") or row.get("dog_gender"))
+            sex_val = None
+            if raw_sex:
+                s_clean = raw_sex.strip().upper()
+                if s_clean in ("B", "BITCH", "FEMALE", "F"):
+                    sex_val = "B"
+                elif s_clean in ("D", "DOG", "MALE", "M"):
+                    sex_val = "D"
+            if not sex_val and weight:
+                sex_val = "B" if weight < 29.2 else "D"
+
+            if sex_val:
+                cursor.execute("UPDATE greyhounds SET sex = COALESCE(sex, ?) WHERE id = ?", (sex_val, dog_id))
+
             finish_pos = clean_numeric(row.get("finish_position"), is_int=True)
             margin = clean_numeric(row.get("margin"))
             race_time = clean_numeric(row.get("race_time"))
@@ -342,13 +357,14 @@ class HistoryImporter:
             # 7. Upsert Race Runner
             cursor.execute("""
                 INSERT INTO race_runners (
-                    race_id, dog_id, trainer_id, box_number, weight, running_style,
+                    race_id, dog_id, trainer_id, box_number, weight, sex, running_style,
                     finish_position, margin, race_time, split_1, split_2, sp_odds, is_scratched, card_split_1
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(race_id, box_number) DO UPDATE SET
                     dog_id = excluded.dog_id,
                     trainer_id = COALESCE(excluded.trainer_id, race_runners.trainer_id),
                     weight = COALESCE(excluded.weight, race_runners.weight),
+                    sex = COALESCE(excluded.sex, race_runners.sex),
                     running_style = COALESCE(excluded.running_style, race_runners.running_style),
                     finish_position = COALESCE(excluded.finish_position, race_runners.finish_position),
                     margin = COALESCE(excluded.margin, race_runners.margin),
@@ -359,7 +375,7 @@ class HistoryImporter:
                     is_scratched = excluded.is_scratched,
                     card_split_1 = COALESCE(excluded.card_split_1, race_runners.card_split_1)
             """, (
-                race_id, dog_id, trainer_id, box_num, weight, running_style,
+                race_id, dog_id, trainer_id, box_num, weight, sex_val, running_style,
                 finish_pos, margin, race_time, split_1, split_2, sp_odds, is_scratched, split_1
             ))
             runners_inserted += 1
@@ -369,11 +385,11 @@ class HistoryImporter:
             if finish_pos is not None and not is_scratched:
                 cursor.execute("""
                     INSERT OR IGNORE INTO past_performances (
-                        dog_id, run_date, run_date_iso, track_code, distance, box, weight,
+                        dog_id, run_date, run_date_iso, track_code, distance, box, weight, sex,
                         finish_pos, race_time, margin, split_1, pir, sp_odds, grade
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    dog_id, m_date, m_date, track_name, distance, box_num, weight,
+                    dog_id, m_date, m_date, track_name, distance, box_num, weight, sex_val,
                     str(finish_pos), race_time, margin, split_1, pir, sp_odds, grade
                 ))
                 if cursor.rowcount > 0:

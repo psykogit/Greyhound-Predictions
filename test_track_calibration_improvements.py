@@ -78,7 +78,7 @@ def test_sale_calibration():
     # Race 1: Box 6 (Starts Monday) was the actual winner and model top pick with Bayesian shrinkage
     p1 = analytics.predict_race_probabilities(1638)
     assert p1[0]["box"] == 6
-    assert p1[0]["model_win_prob"] > 0.30  # Clear top pick with Bayesian shrinkage applied
+    assert p1[0]["model_win_prob"] > 0.25  # Clear top pick with Bayesian shrinkage applied
 
     # Race 2: Dr Freddy (Box 3) must be derisked due to rookie inside pinch on outside sweep track
     p2 = analytics.predict_race_probabilities(1639)

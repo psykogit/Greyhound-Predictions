@@ -120,6 +120,18 @@ def init_db(db_path: Optional[Path] = None) -> None:
     except Exception:
         pass
     try:
+        cursor.execute("ALTER TABLE greyhounds ADD COLUMN sex TEXT;")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE race_runners ADD COLUMN sex TEXT;")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE past_performances ADD COLUMN sex TEXT;")
+    except Exception:
+        pass
+    try:
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS odds_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,6 +154,7 @@ def init_db(db_path: Optional[Path] = None) -> None:
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         dog_id TEXT UNIQUE,
         dog_name TEXT NOT NULL,
+        sex TEXT, -- 'D' (Dog/Male) or 'B' (Bitch/Female)
         sire TEXT,
         dam TEXT,
         date_of_birth TEXT,
@@ -173,6 +186,7 @@ def init_db(db_path: Optional[Path] = None) -> None:
         box_number INTEGER,
         rug_number INTEGER,
         weight REAL,
+        sex TEXT, -- 'D' (Dog/Male) or 'B' (Bitch/Female)
         running_style TEXT, -- Railer, Mid, Wide
         form_string TEXT,
         best_time REAL,
@@ -198,6 +212,7 @@ def init_db(db_path: Optional[Path] = None) -> None:
         distance INTEGER,
         box INTEGER,
         weight REAL,
+        sex TEXT, -- 'D' (Dog/Male) or 'B' (Bitch/Female)
         finish_pos TEXT,
         race_time REAL,
         winner_time REAL,

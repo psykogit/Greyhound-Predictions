@@ -1154,6 +1154,10 @@ let currentRaceId = null;
 ${finishBadge}
                 <i class="fa-solid fa-chart-line text-[10px] text-slate-500 group-hover:text-accent-teal"></i>
               </button>
+              ${p.sex ? (p.sex === 'B' 
+                ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-pink-950/80 text-pink-300 border border-pink-700/50" title="Bitch (Female)"><i class="fa-solid fa-venus mr-0.5 text-[8px]"></i>B</span>` 
+                : `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-950/80 text-blue-300 border border-blue-700/50" title="Dog (Male)"><i class="fa-solid fa-mars mr-0.5 text-[8px]"></i>D</span>`) : ''}
+              ${p.today_weight || p.last_weight ? `<span class="text-[10px] font-mono text-slate-400 font-normal" title="Weight">${Number(p.today_weight || p.last_weight).toFixed(1)}kg</span>` : ''}
               ${p.expert_tip_rank ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50" title="TheDogs Expert Tip #${p.expert_tip_rank}">Tip #${p.expert_tip_rank}</span>` : ''}
               ${p.tie_breaker_applied ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-600/50" title="${p.tie_breaker_note || 'Deadlock broken via Expert Consensus'}"><i class="fa-solid fa-scale-balanced mr-0.5"></i>Tie-Break</span>` : ''}
               ${p.is_roughie ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/60 shadow-sm shadow-amber-950/50 inline-flex items-center" title="${(p.roughie_insight || 'Recommended 5th Dog Value Roughie for First 4 & Trifecta').replace(/"/g, '&quot;')}"><i class="fa-solid fa-fire mr-1 text-amber-400"></i>5th Dog Roughie</span>` : ''}
@@ -1355,10 +1359,15 @@ ${finishBadge}
       const winRate = starts > 0 ? ((wins / starts) * 100).toFixed(1) : '0.0';
       const plcRate = starts > 0 ? (((wins + seconds + thirds) / starts) * 100).toFixed(1) : '0.0';
 
+      const sexTag = d.sex ? (d.sex === 'B' 
+        ? '<span class="text-pink-400 font-bold ml-1.5"><i class="fa-solid fa-venus mr-1"></i>Bitch (B)</span>' 
+        : '<span class="text-blue-400 font-bold ml-1.5"><i class="fa-solid fa-mars mr-1"></i>Dog (D)</span>') : '';
+
       metaEl.innerHTML = `
         <span class="text-[#C0C0C0]">Starts: <strong class="text-white">${starts}</strong></span> · 
         <span class="text-accent-teal">Wins: <strong>${wins}</strong> (${winRate}%)</span> · 
         <span class="text-amber-300">Places: <strong>${wins + seconds + thirds}</strong> (${plcRate}%)</span>
+        ${sexTag}
         ${d.prizemoney ? ` · <span class="text-slate-400">Prize: $${Number(d.prizemoney).toLocaleString()}</span>` : ''}
       `;
 
@@ -1454,7 +1463,7 @@ ${finishBadge}
                       <td class="p-2 text-right font-mono text-slate-400">${r.winner_time ? Number(r.winner_time).toFixed(2) + 's' : '-'}</td>
                       <td class="p-2 text-right font-mono text-[#C0C0C0]">${marginStr}</td>
                       <td class="p-2 text-right font-mono text-cyan-400 font-semibold">${spStr}</td>
-                      <td class="p-2 text-slate-400 text-[11px]">${r.weight ? Number(r.weight).toFixed(1) + 'kg' : '-'}</td>
+                      <td class="p-2 text-slate-400 text-[11px]">${r.weight ? Number(r.weight).toFixed(1) + 'kg' : '-'}${r.sex ? (r.sex === 'B' ? ' <span class="text-pink-400 font-semibold">(B)</span>' : ' <span class="text-blue-400 font-semibold">(D)</span>') : ''}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -3098,4 +3107,4 @@ ${finishBadge}
       }
     }, 15000);
   </script>
-\n</body>\n</html>
+</body></html>

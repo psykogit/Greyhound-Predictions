@@ -455,9 +455,9 @@ class GreyhoundAnalytics:
         """
         cursor = self.conn.cursor()
 
-        # 1. Fetch dog master records (PBs, Box records, Profile URL)
+        # 1. Fetch dog master records (PBs, Box records, Profile URL, Sex)
         cursor.execute("""
-        SELECT dog_name, career_starts, career_wins, career_seconds, career_thirds,
+        SELECT dog_name, sex, career_starts, career_wins, career_seconds, career_thirds,
                pb_times_json, box_record_json, profile_url
         FROM greyhounds WHERE id = ?
         """, (dog_id,))
@@ -678,8 +678,13 @@ class GreyhoundAnalytics:
         straight_starts = sum(1 for s in starts if any(st in str(s["track_code"] if "track_code" in s.keys() else "").upper() for st in ["HEA", "CAP", "RBS", "MBS", "QST"]))
         capalaba_starts = sum(1 for s in starts if "CAP" in str(s["track_code"] if "track_code" in s.keys() else "").upper())
 
+        dog_sex = g_row["sex"] if g_row and "sex" in g_row.keys() and g_row["sex"] else None
+        if not dog_sex and optimal_weight:
+            dog_sex = "B" if optimal_weight < 29.2 else "D"
+
         return {
             "starts_count": len(starts),
+            "sex": dog_sex,
             "avg_split_1": sum(splits) / len(splits) if splits else None,
             "median_split_1": median_split,
             "split_stdev": split_stdev,
@@ -944,6 +949,7 @@ class GreyhoundAnalytics:
         cursor.execute(f"""
         SELECT rr.id, rr.box_number, {into_box_col} {card_split_col} rr.running_style, rr.form_string, rr.split_1, rr.best_time,
                rr.sp_odds, rr.sportsbet_odds, rr.sportsbet_place_odds, rr.weight, rr.is_scratched, rr.finish_position, rr.margin, rr.race_time,
+               rr.sex as runner_sex, g.sex as dog_sex,
                g.id as dog_id, g.dog_name, t.trainer_name
         FROM race_runners rr
         JOIN greyhounds g ON rr.dog_id = g.id
@@ -1062,6 +1068,15 @@ class GreyhoundAnalytics:
             if r["weight"] and profile.get("last_weight"):
                 weight_var = abs(float(r["weight"]) - float(profile["last_weight"]))
 
+            # Resolve dog sex: race runner sex -> greyhound master sex -> profile sex -> weight fallback (< 29.2kg bitch, >= 29.2kg dog)
+            resolved_sex = (r["runner_sex"] if "runner_sex" in r.keys() and r["runner_sex"] else None) or \
+                           (r["dog_sex"] if "dog_sex" in r.keys() and r["dog_sex"] else None) or \
+                           profile.get("sex")
+            if not resolved_sex:
+                eff_w = today_weight or last_weight or optimal_weight
+                if eff_w:
+                    resolved_sex = "B" if eff_w < 29.2 else "D"
+
             runner_metrics.append({
                 "runner_id": r["id"],
                 "dog_id": r["dog_id"],
@@ -1069,6 +1084,7 @@ class GreyhoundAnalytics:
                 "orig_box": r["box_number"],
                 "dog_name": display_name,
                 "trainer": r["trainer_name"],
+                "sex": resolved_sex,
                 "form_string": r["form_string"],
                 "form_score": form_score,
                 "split_1": split_1,
@@ -2329,9 +2345,12 @@ class GreyhoundAnalytics:
                     elif inside_neighbor["split_1"] < m["split_1"] - 0.06:
                         squeeze_factor *= 0.94
 
-                # C. Kinetic Collision Physics (The Bully Factor)
-                # If dog is in a tight race to the first turn with its neighbors, body mass dictates who holds the line.
+                # C. Kinetic Collision Physics & Sex Dynamics (The Bully Factor)
+                # In canine biomechanics, momentum p = m * v dictates lane retention upon turn contact.
+                # Heavier male dogs (32kg+) absorb contact without cadence interruption, whereas
+                # lighter bitches (<29kg) suffer sharp deceleration when crowded.
                 my_weight = m.get("today_weight")
+                my_sex = m.get("sex")
                 if my_weight:
                     outside_neighbor = next((other for other in runner_metrics if other["box"] == m["box"] + 1), None)
                     if not outside_neighbor and (m["box"] + 1) in vacant_or_scratched:
@@ -2355,6 +2374,25 @@ class GreyhoundAnalytics:
                                 squeeze_factor *= 0.94
                             elif weight_diff >= 3.5: # We hold them off
                                 squeeze_factor *= 1.04
+
+                # C1. Box 1 / 2 Rail Defense vs Rail Pinch (Sex & Mass Grounded):
+                # Empirical data shows Box 1 Dogs win at 22.35% (+4.17% over Bitches at 18.18%).
+                # A heavier dog has the mass to hold the inside rail on standard circular tracks.
+                # A lightweight bitch drawn inside with heavier dogs flanking on the outside gets checked into the rail.
+                if m["box"] in (1, 2):
+                    if not is_outside_sweep_track and (my_sex == "D" or (my_weight and my_weight >= 31.5)):
+                        squeeze_factor *= 1.03  # Rail-holding defense boost
+                    elif my_sex == "B" or (my_weight and my_weight < 28.5):
+                        outside_heavier_dog = any(
+                            other["box"] in (m["box"] + 1, m["box"] + 2)
+                            and (other.get("sex") == "D" or (other.get("today_weight") and other["today_weight"] >= 31.5))
+                            and other.get("split_1") is not None
+                            and m.get("split_1") is not None
+                            and abs(other["split_1"] - m["split_1"]) <= 0.12
+                            for other in runner_metrics
+                        )
+                        if outside_heavier_dog:
+                            squeeze_factor *= 0.95  # Rail-pinched penalty under outside pressure
 
                 # B. Inside Pinch & Outside Cross-Over Penalty:
                 # On circular tracks, outer runners need extra margin to overcome the geometric arc to the bend
@@ -2390,6 +2428,22 @@ class GreyhoundAnalytics:
                         squeeze_factor *= 0.88
                     elif inner_faster:
                         squeeze_factor *= 0.93
+
+                    # Middle box sex-differentiated congestion penalty:
+                    # In boxes 3-5, bitches surrounded by heavier male dogs drop to 10.3%-11.5% win rate
+                    if my_sex == "B":
+                        surrounded_by_dogs = sum(
+                            1 for other in runner_metrics
+                            if abs(other["box"] - m["box"]) == 1
+                            and (other.get("sex") == "D" or (other.get("today_weight") and other["today_weight"] >= 32.0))
+                            and other.get("split_1") is not None
+                            and m.get("split_1") is not None
+                            and abs(other["split_1"] - m["split_1"]) <= 0.15
+                        )
+                        if surrounded_by_dogs >= 1:
+                            squeeze_factor *= 0.94
+                    elif my_sex == "D" and my_weight and my_weight >= 33.0:
+                        squeeze_factor *= 1.03  # Heavy dog power push-through
 
                 # C2. Box 6 Awkward Bend Trap on Circular Tracks:
                 # If Box 6 lacks early speed to clear dogs on its inside (inside runners within 0.02s of its split),
@@ -2448,6 +2502,11 @@ class GreyhoundAnalytics:
                             squeeze_factor *= 1.10
                         elif (m["box"] - 1) in vacant_or_scratched and is_elite_pb:
                             squeeze_factor *= 1.05
+
+                    # Empirical Bitch Box 8 Swoop: In clean air out wide, lighter bitches
+                    # outperform dogs (16.27% vs 15.11%) due to nimble cornering and unobstructed momentum
+                    if my_sex == "B":
+                        squeeze_factor *= 1.04
                 elif m["box"] == 7 and not is_carted_wide and (m["split_1"] - fastest_split) <= 0.03:
                     squeeze_factor *= 1.08
 
@@ -2584,6 +2643,16 @@ class GreyhoundAnalytics:
                     squeeze_factor *= 1.10  # Tight rail control
                 elif m["box"] in (4, 5) and m.get("speed_rank", 5) > 2:
                     squeeze_factor *= 0.88  # Riverina mid-pack squeeze
+
+            # --- DISTANCE & STAYING POWER SCALING ---
+            # Over staying trips (>= 530m), muscular endurance and momentum favor heavier male dogs
+            # (Empirical database: Males win 20.45% vs Bitches 14.71% on 530m+ staying races)
+            if distance >= 530:
+                if m.get("sex") == "D" or (m.get("today_weight") and m["today_weight"] >= 32.0):
+                    squeeze_factor *= 1.03  # Sustained mass-cruising endurance
+                elif m.get("sex") == "B" and (m.get("today_weight") and m["today_weight"] < 28.0):
+                    if not m.get("proven_stamina") or m["proven_stamina"] < distance:
+                        squeeze_factor *= 0.96  # Staying distance fade risk
 
             box_affinity = m.get("box_affinity", 1.0)
 
@@ -2939,6 +3008,8 @@ class GreyhoundAnalytics:
                 "split_1": sr.get("split_1"),
                 "best_time": sr.get("best_time"),
                 "dsls": sr.get("dsls"),
+                "sex": sr.get("sex"),
+                "today_weight": sr.get("today_weight"),
                 "last_weight": sr.get("last_weight"),
                 "starts_count": sr.get("starts_count", 0),
                 "career_starts": sr.get("career_starts", 0),

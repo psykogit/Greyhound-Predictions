@@ -177,6 +177,22 @@ class DogHistoryCollector:
                         })
                 break
 
+        # Determine dog sex from page details or weights in career_runs
+        dog_sex = None
+        page_text = soup.get_text(" ", strip=True).upper()
+        m_sex = re.search(r'\b(?:SEX|GENDER)\s*:\s*(BITCH|DOG|FEMALE|MALE|[DB])\b', page_text)
+        if m_sex:
+            token = m_sex.group(1)
+            dog_sex = 'B' if token in ('BITCH', 'FEMALE', 'B') else 'D'
+        else:
+            weights = [r["weight"] for r in career_runs if r.get("weight")]
+            if weights:
+                avg_w = sum(weights) / len(weights)
+                dog_sex = 'B' if avg_w < 29.2 else 'D'
+
+        for r in career_runs:
+            r["sex"] = 'B' if (r.get("weight") and r["weight"] < 29.2) else ('D' if (r.get("weight") and r["weight"] >= 29.2) else dog_sex)
+
         # Career totals calculation
         total_starts = len(career_runs)
         total_wins = sum(1 for r in career_runs if "1st" in str(r["finish_pos"]))
@@ -186,6 +202,7 @@ class DogHistoryCollector:
         return {
             "dog_name": dog_name,
             "profile_url": profile_path,
+            "sex": dog_sex,
             "total_starts": total_starts,
             "total_wins": total_wins,
             "total_seconds": total_seconds,
@@ -222,6 +239,9 @@ class DogHistoryCollector:
             dog_id
         ))
 
+        if data.get("sex"):
+            c.execute("UPDATE greyhounds SET sex = COALESCE(sex, ?) WHERE id = ?", (data["sex"], dog_id))
+
         # Check if pb_times_json / box_record_json columns exist in greyhounds; if not, add them
         c.execute("PRAGMA table_info(greyhounds)")
         existing_cols = {col["name"] for col in c.fetchall()}
@@ -253,13 +273,14 @@ class DogHistoryCollector:
             iso_date = dt.strftime("%Y-%m-%d") if dt else None
             c.execute("""
             INSERT INTO past_performances (
-                dog_id, run_date, run_date_iso, track_code, distance, box, weight, finish_pos,
+                dog_id, run_date, run_date_iso, track_code, distance, box, weight, sex, finish_pos,
                 race_time, winner_time, margin, split_1, pir, sp_odds, grade
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(dog_id, run_date, track_code, race_time) DO UPDATE SET
                 run_date_iso=COALESCE(excluded.run_date_iso, past_performances.run_date_iso),
                 box=excluded.box,
                 weight=excluded.weight,
+                sex=COALESCE(excluded.sex, past_performances.sex),
                 finish_pos=excluded.finish_pos,
                 winner_time=excluded.winner_time,
                 margin=excluded.margin,
@@ -275,6 +296,7 @@ class DogHistoryCollector:
                 r["distance"],
                 r["box"],
                 r["weight"],
+                r.get("sex") or data.get("sex"),
                 r["finish_pos"],
                 r["race_time"],
                 r["winner_time"],
@@ -334,7 +356,7 @@ class DogHistoryCollector:
         c = conn.cursor()
 
         c.execute("""
-        SELECT id, dog_name, career_starts, career_wins, career_seconds, career_thirds,
+        SELECT id, dog_name, sex, career_starts, career_wins, career_seconds, career_thirds,
                prizemoney, profile_url, pb_times_json, box_record_json
         FROM greyhounds WHERE id = ?
         """, (dog_id,))
@@ -344,7 +366,7 @@ class DogHistoryCollector:
             return {}
 
         c.execute("""
-        SELECT run_date, track_code, distance, box, weight, finish_pos,
+        SELECT run_date, track_code, distance, box, weight, sex, finish_pos,
                race_time, winner_time, margin, split_1, pir, sp_odds, grade
         FROM past_performances
         WHERE dog_id = ?
@@ -373,6 +395,7 @@ class DogHistoryCollector:
         return {
             "dog_id": g["id"],
             "dog_name": g["dog_name"],
+            "sex": g["sex"],
             "total_starts": g["career_starts"] or len(runs),
             "total_wins": g["career_wins"] or sum(1 for r in runs if "1st" in str(r.get("finish_pos", ""))),
             "total_seconds": g["career_seconds"] or sum(1 for r in runs if "2nd" in str(r.get("finish_pos", ""))),

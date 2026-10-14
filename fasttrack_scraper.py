@@ -168,10 +168,28 @@ class FastTrackScraper:
                                         "grade": sub_tds[17] if len(sub_tds) > 17 else ""
                                     })
 
+                        # Determine dog sex from color/sex suffix or past run weights
+                        dog_sex = None
+                        dog_extra = (m_dog.group(2) or "") if m_dog else ""
+                        if dog_extra:
+                            de = dog_extra.strip().upper()
+                            if re.search(r'\b(BITCH|FEMALE)\b', de) or re.search(r'\b(?:BK|BE|BD|F|WBD|WBK|DKBD|RBD|RF|WF|LTBD)?\s*B\b', de) or de == 'B':
+                                dog_sex = 'B'
+                            elif re.search(r'\b(DOG|MALE)\b', de) or re.search(r'\b(?:BK|BE|BD|F|WBD|WBK|DKBD|RBD|RF|WF|LTBD)?\s*D\b', de) or de == 'D':
+                                dog_sex = 'D'
+
+                        if not dog_sex:
+                            weights = [pr["weight"] for pr in past_runs if pr.get("weight")]
+                            if weights:
+                                avg_w = sum(weights) / len(weights)
+                                dog_sex = 'B' if avg_w < 29.2 else 'D'
+
                         # Deduplicate past runs by (run_date, track_code, race_time)
                         dedup = []
                         seen_keys = set()
                         for pr in past_runs:
+                            pr_sex = 'B' if (pr.get("weight") and pr["weight"] < 29.2) else ('D' if (pr.get("weight") and pr["weight"] >= 29.2) else dog_sex)
+                            pr["sex"] = pr_sex
                             k = (pr["run_date"], pr["track_code"], pr["race_time"])
                             if k not in seen_keys:
                                 seen_keys.add(k)
@@ -180,6 +198,7 @@ class FastTrackScraper:
                         race["runners"].append({
                             "box_number": box_num,
                             "dog_name": dog_name,
+                            "sex": dog_sex,
                             "trainer_name": trainer_name,
                             "form_string": form_str,
                             "career_string": career_str,
@@ -234,6 +253,8 @@ class FastTrackScraper:
                 """, (runner["dog_name"],))
                 cursor.execute("SELECT id FROM greyhounds WHERE dog_name = ?", (runner["dog_name"],))
                 dog_id = cursor.fetchone()["id"]
+                if runner.get("sex"):
+                    cursor.execute("UPDATE greyhounds SET sex = COALESCE(sex, ?) WHERE id = ?", (runner["sex"], dog_id))
 
                 # Upsert Trainer
                 trainer_id = None
@@ -246,27 +267,29 @@ class FastTrackScraper:
 
                 # Upsert Race Runner
                 cursor.execute("""
-                INSERT INTO race_runners (race_id, dog_id, trainer_id, box_number, form_string)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO race_runners (race_id, dog_id, trainer_id, box_number, form_string, sex)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(race_id, box_number) DO UPDATE SET
                     dog_id=excluded.dog_id,
                     trainer_id=excluded.trainer_id,
-                    form_string=excluded.form_string
+                    form_string=excluded.form_string,
+                    sex=COALESCE(excluded.sex, race_runners.sex)
                 """, (
                     race_id,
                     dog_id,
                     trainer_id,
                     runner["box_number"],
-                    runner["form_string"]
+                    runner["form_string"],
+                    runner.get("sex")
                 ))
 
                 # Insert Past Performances
                 for pp in runner["past_performances"]:
                     cursor.execute("""
                     INSERT OR IGNORE INTO past_performances (
-                        dog_id, run_date, track_code, distance, box, weight, finish_pos,
+                        dog_id, run_date, track_code, distance, box, weight, sex, finish_pos,
                         race_time, winner_time, margin, split_1, pir, sp_odds, grade
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         dog_id,
                         pp["run_date"],
@@ -274,6 +297,7 @@ class FastTrackScraper:
                         pp["distance"],
                         pp["box"],
                         pp["weight"],
+                        pp.get("sex") or runner.get("sex"),
                         pp["finish_pos"],
                         pp["race_time"],
                         pp["winner_time"],
