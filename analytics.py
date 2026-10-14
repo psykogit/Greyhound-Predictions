@@ -339,7 +339,7 @@ class GreyhoundAnalytics:
             cursor.execute("SELECT temperature FROM track_calibrations WHERE UPPER(track_name) = ? OR ? LIKE ('%' || UPPER(track_name) || '%')", (t_key, t_key))
             row = cursor.fetchone()
             if row and row[0]:
-                cal_temp = float(max(1.2, min(3.5, row[0])))
+                cal_temp = float(max(1.4, min(3.2, row[0])))
                 self._track_temp_cache[t_key] = cal_temp
                 return cal_temp
         except Exception:
@@ -463,14 +463,23 @@ class GreyhoundAnalytics:
         """, (dog_id,))
         g_row = cursor.fetchone()
 
-        # 2. Fetch past starts (newest first by ISO run date)
-        cursor.execute("""
-        SELECT track_code, run_date, run_date_iso, distance, box, weight, finish_pos, race_time, split_1, pir, sp_odds, margin, grade
-        FROM past_performances
-        WHERE dog_id = ?
-        ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC
-        LIMIT 15
-        """, (dog_id,))
+        # 2. Fetch past starts (newest first by ISO run date, strictly before reference_date for point-in-time isolation)
+        if reference_date:
+            cursor.execute("""
+            SELECT track_code, run_date, run_date_iso, distance, box, weight, finish_pos, race_time, split_1, pir, sp_odds, margin, grade
+            FROM past_performances
+            WHERE dog_id = ? AND coalesce(run_date_iso, run_date) < ?
+            ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC
+            LIMIT 15
+            """, (dog_id, reference_date))
+        else:
+            cursor.execute("""
+            SELECT track_code, run_date, run_date_iso, distance, box, weight, finish_pos, race_time, split_1, pir, sp_odds, margin, grade
+            FROM past_performances
+            WHERE dog_id = ?
+            ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC
+            LIMIT 15
+            """, (dog_id,))
         starts = cursor.fetchall()
 
         # Parse PB times
@@ -736,19 +745,64 @@ class GreyhoundAnalytics:
         # Baseline track geometry bias for circular tracks
         if has_empirical and empirical_box_mult:
             base_bias = empirical_box_mult
-        else:
-            base_bias = {
-                1: 1.25,
-                2: 1.10,
-                3: 1.00,
-                4: 0.90,
-                5: 0.88,
-                6: 0.92,
-                7: 1.02,
-                8: 1.05
-            }.get(box, 1.0)
+            rail_bias = track_calib.get("rail_bias_index", 1.0)
+            is_outside_sweep_track = (rail_bias <= 0.85 or track_calib.get("outside_sweep_index", 1.0) >= 1.25)
 
-        # Conditional gating for Box 1 on circular tracks
+            # Conditional gating scaled proportionally against empirical baseline:
+            if box == 1:
+                if form_score < 1.5:
+                    return round(base_bias * 0.88, 3)
+                elif early_speed_rank > 4:
+                    return round(base_bias * 0.92, 3)
+                elif early_speed_rank <= 2 and form_score >= 3.5:
+                    return round(min(1.40, base_bias * 1.15), 3)
+                return base_bias
+
+            elif box == 2:
+                if form_score < 1.5:
+                    return round(base_bias * 0.90, 3)
+                elif early_speed_rank <= 2:
+                    return round(min(1.40, base_bias * 1.10), 3)
+                return base_bias
+
+            elif box == 3:
+                if early_speed_rank <= 2:
+                    return round(min(1.35, base_bias * 1.08), 3)
+                elif form_score < 1.5:
+                    return round(base_bias * 0.92, 3)
+                return base_bias
+
+            elif box in (6, 7, 8):
+                # On tracks with an outside sweep bias (like Sale or Grafton), wide runners
+                # sweep cleanly even from off the pace.
+                if is_outside_sweep_track:
+                    if form_score >= 2.0:
+                        return round(base_bias * 1.05, 3) if early_speed_rank <= 2 else base_bias
+                    else:
+                        return round(base_bias * 0.90, 3)
+                else:
+                    # Standard circular tracks: outside runners need speed to clear the field
+                    if early_speed_rank <= 2 and form_score >= 2.5:
+                        return round(min(1.35, base_bias * 1.12), 3)
+                    elif early_speed_rank <= 3:
+                        return base_bias
+                    else:
+                        return round(base_bias * 0.94, 3)
+
+            return base_bias
+
+        base_bias = {
+            1: 1.25,
+            2: 1.10,
+            3: 1.00,
+            4: 0.90,
+            5: 0.88,
+            6: 0.92,
+            7: 1.02,
+            8: 1.05
+        }.get(box, 1.0)
+
+        # Fallback conditional gating for uncalibrated circular tracks
         if box == 1:
             if form_score < 1.5:
                 # Poor form dog in Box 1 gets swamped: penalize rather than boost
@@ -873,6 +927,7 @@ class GreyhoundAnalytics:
 
         # Autonomous dynamic empirical track calibration (Bayesian box multipliers, speed dominance, rail bias)
         track_calib = self.track_calibration_engine.get_track_calibration(track_name, distance)
+        is_outside_sweep_track = bool(track_calib and track_calib.get("sample_starts", 0) >= 50 and track_calib.get("outside_sweep_index", 1.0) >= 1.25 and track_calib.get("rail_bias_index", 1.0) <= 0.85) or ("SALE" in (track_name or "").upper())
 
         # Detect scratched / vacant boxes to calculate lane clearance buffers
         cursor.execute("SELECT box_number FROM race_runners WHERE race_id = ? AND is_scratched = 1", (race_id,))
@@ -880,12 +935,14 @@ class GreyhoundAnalytics:
 
         # Fetch runners (excluding scratched dogs)
         cursor.execute("PRAGMA table_info(race_runners)")
-        rr_cols = {col["name"] for col in cursor.fetchall()}
+        rr_cols = {col["name"] if (hasattr(col, "__getitem__") and isinstance(col, sqlite3.Row)) else col[1] for col in cursor.fetchall()}
         has_into_box = "into_box" in rr_cols
+        has_card_split = "card_split_1" in rr_cols
 
         into_box_col = "rr.into_box," if has_into_box else ""
+        card_split_col = "rr.card_split_1," if has_card_split else ""
         cursor.execute(f"""
-        SELECT rr.id, rr.box_number, {into_box_col} rr.running_style, rr.form_string, rr.split_1, rr.best_time,
+        SELECT rr.id, rr.box_number, {into_box_col} {card_split_col} rr.running_style, rr.form_string, rr.split_1, rr.best_time,
                rr.sp_odds, rr.sportsbet_odds, rr.sportsbet_place_odds, rr.weight, rr.is_scratched, rr.finish_position, rr.margin, rr.race_time,
                g.id as dog_id, g.dog_name, t.trainer_name
         FROM race_runners rr
@@ -973,8 +1030,18 @@ class GreyhoundAnalytics:
             if profile["starts_count"] > 0:
                 form_score = (form_score * 0.6) + (profile["db_form_score"] * 0.4)
 
-            # Early split 1: prioritize speedmap split from race card (specifically calibrated for today's track and distance)
-            split_1 = r["split_1"]
+            # Early split 1: strictly prioritize speedmap split from race card (pre-race sectional)
+            # Never read post-race actual sectional split as a pre-race predictive feature
+            card_sp = r["card_split_1"] if (has_card_split and "card_split_1" in r.keys() and r["card_split_1"] is not None) else None
+            if card_sp is not None:
+                split_1 = card_sp
+            elif r["finish_position"] is None:
+                # Race has not finished yet, so split_1 is whatever card split was stored in split_1
+                split_1 = r["split_1"]
+            else:
+                # Race has finished, so r["split_1"] contains post-race actual sectional. Fallback to profile to avoid leakage!
+                split_1 = None
+
             if not split_1 and profile.get("median_split_1"):
                 med_sp = profile.get("median_split_1")
                 # Sanity check: do not mix a 4.10s bend split into a 300m race where the sensor is at 6.60s
@@ -1039,8 +1106,30 @@ class GreyhoundAnalytics:
 
         # Rank split-1 among runners (lower split = faster rank)
         valid_splits = [m["split_1"] for m in runner_metrics if m["split_1"] is not None]
-        avg_race_split = sum(valid_splits) / len(valid_splits) if valid_splits else 5.25
-        fastest_split = min(valid_splits) if valid_splits else 5.20
+        track_upper = (track_name or "").upper()
+        if not valid_splits:
+            if "MANDURAH" in track_upper:
+                if (distance or 0) <= 320:
+                    default_split = 6.85
+                elif (distance or 0) <= 420:
+                    default_split = 6.38
+                else:
+                    default_split = 5.75
+            elif "TOWNSVILLE" in track_upper:
+                default_split = 7.50 if (distance or 0) <= 400 else 8.80
+            elif "DARWIN" in track_upper:
+                default_split = 7.15 if (distance or 0) <= 350 else 11.00
+            elif (distance or 0) <= 320:
+                default_split = 4.00
+            elif (distance or 0) <= 420:
+                default_split = 5.25
+            else:
+                default_split = 5.50
+            avg_race_split = default_split
+            fastest_split = default_split
+        else:
+            avg_race_split = sum(valid_splits) / len(valid_splits)
+            fastest_split = min(valid_splits)
 
         # Rank run-home among runners (lower time = faster rank)
         valid_run_homes = [m["median_run_home"] for m in runner_metrics if m["median_run_home"] is not None]
@@ -1116,8 +1205,13 @@ class GreyhoundAnalytics:
                     # 1 grade difference = ~0.12s class gap
                     time_adjustment = -(grade_delta * 0.12)
                     
-                    # Synthesize PB: Track average + class adjustment + 0.08s "unproven/green" tax
-                    m["best_time"] = avg_best_time + time_adjustment + 0.08
+                    # Last-start winners possess proven winning motor; don't penalize with unproven green tax
+                    f_str = str(m.get("form_string") or "")
+                    is_last_start_winner = bool(f_str and (f_str.startswith("1") or f_str.endswith("1") or "1" in f_str[:2]))
+                    unproven_tax = -0.05 if is_last_start_winner else 0.06
+                    
+                    # Synthesize PB: Track average + class adjustment
+                    m["best_time"] = avg_best_time + time_adjustment + unproven_tax
                     m["is_synthesized_pb"] = True
                     
             # Recalculate mins after synthesis
@@ -1134,6 +1228,14 @@ class GreyhoundAnalytics:
             # Normalized Early Speed Score: lower split relative to average is rewarded
             speed_delta = avg_race_split - m["split_1"]
             split_multiplier = 15.0 if (is_straight or distance <= 400) else 14.0
+
+            # Rookie / Inexperienced Split Dampener:
+            # When a runner has <= 2 career starts, a single fast split is high-variance.
+            # On outside sweep tracks where inside traffic is chaotic, shrink speed delta for novices drawn inside.
+            c_starts = m.get("career_starts", 0)
+            if c_starts <= 2 and is_outside_sweep_track and m["box"] in (1, 2, 3) and speed_delta > 0:
+                speed_delta *= 0.45  # Regress unproven early pace toward field mean
+
             speed_score = max(1.0, 5.0 + (speed_delta * split_multiplier))
 
             delta_to_min = (m["best_time"] - min_best_time) if (m["best_time"] and min_best_time) else 99.0
@@ -1177,8 +1279,9 @@ class GreyhoundAnalytics:
                 # If the dog possesses the fastest or near-fastest proven time at this track & distance (within 0.08s of min_best_time):
                 # It possesses the superior proven motor on the track, PROVIDED its recent form is not cold!
                 if delta_to_min <= 0.08:
-                    if m["form_score"] < 3.5:
-                        # Cold-form stale PB dampener: do not reward an unplaced, out-of-form dog riding an old fast time
+                    sb_chk = m.get("sportsbet_odds") or m.get("market_odds")
+                    if m["form_score"] < 3.5 or (sb_chk and sb_chk >= 10.0 and m["form_score"] < 4.5):
+                        # Cold-form or market-disregarded stale PB dampener: do not reward an unplaced dog riding an old fast time
                         pass
                     elif delta_to_min <= 0.03:
                         best_time_bonus *= 1.08
@@ -1204,7 +1307,10 @@ class GreyhoundAnalytics:
             # If stepping up from pure sprint (<= 340m) to a middle-sprint (>= 380m) and card PB is not top-tier:
             if distance >= 380 and m.get("dog_id"):
                 try:
-                    cursor.execute("SELECT distance FROM past_performances WHERE dog_id = ? ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC LIMIT 3", (m["dog_id"],))
+                    if meeting_date:
+                        cursor.execute("SELECT distance FROM past_performances WHERE dog_id = ? AND coalesce(run_date_iso, run_date) < ? ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC LIMIT 3", (m["dog_id"], meeting_date))
+                    else:
+                        cursor.execute("SELECT distance FROM past_performances WHERE dog_id = ? ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC LIMIT 3", (m["dog_id"],))
                     rec_dists = [row[0] for row in cursor.fetchall() if row[0]]
                     if rec_dists and (sum(rec_dists) / len(rec_dists) <= 340):
                         if m["best_time"] and min_best_time and (m["best_time"] > min_best_time + 0.20):
@@ -1222,10 +1328,8 @@ class GreyhoundAnalytics:
             # Box Multiplier (Straight track vs Circular track with Autonomous Empirical Calibration)
             box_factor = self.calculate_conditional_box_bias(m["box"], form_score, m["speed_rank"], is_straight=is_straight, track_calib=track_calib)
             if not is_straight and b1_b2_parity:
-                if m["box"] == 1 and box_factor > 1.20:
-                    box_factor = 1.18  # Reduce monopoly
-                elif m["box"] == 2:
-                    box_factor = max(1.18, box_factor)  # Elevate Box 2 parity
+                if m["box"] == 2:
+                    box_factor = max(1.12, box_factor)  # Elevate Box 2 parity without reducing Box 1 rail advantage
 
             # If Box 1 has proven motor and good form, don't drop below 1.18
             if m["box"] == 1 and delta_to_min <= 0.15 and form_score >= 5.0:
@@ -1382,22 +1486,61 @@ class GreyhoundAnalytics:
                     elif m["box"] == 8: box_factor = max(1.15, box_factor)
                     elif m["box"] in (4, 5): box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 3 else box_factor
             elif "SALE" in track_upper:
-                # Gippsland Two-Turn / Sweeping Oval
-                if distance <= 450:  # 435m Sprint
-                    if m["box"] == 8: box_factor = max(1.24, box_factor)  # Empirical 36.4% win rate on outer sweep
-                    elif m["box"] in (1, 2): box_factor = max(1.18, box_factor)
-                    elif m["box"] in (5, 6, 7): box_factor = min(0.85, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
-                else:  # 510m / 640m
-                    if m["box"] in (1, 2): box_factor = max(1.20, box_factor)
-                    elif m["box"] == 8: box_factor = max(1.15, box_factor)
-                    elif m["box"] in (4, 5): box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 3 else box_factor
+                # Gippsland Sweeping Circuit: Wide outer galloping lanes with high camber.
+                # Empirical data (141 starts):
+                # - Box 8: 26.3% win rate, 78.9% top-4 rate (commanding outside sweep)
+                # - Boxes 6 & 7: 17-19% win rate, strong if possessing early speed
+                # - Box 4: 15.8% win rate (clean run into back straight)
+                # - Boxes 1 & 2: 10% win rate (inside railers often swamped by sweeping momentum)
+                # - Boxes 3 & 5: 6.7% win rate (primary squeeze zone)
+                if distance <= 465:  # 435m Sprint
+                    if m["box"] == 8:
+                        if m.get("speed_rank", 5) <= 4:
+                            box_factor = max(1.26, box_factor)
+                        else:
+                            box_factor = max(1.08, box_factor)
+                    elif m["box"] in (6, 7):
+                        if m.get("speed_rank", 5) <= 3:
+                            box_factor = max(1.18, box_factor)
+                        elif m.get("speed_rank", 5) == 4:
+                            box_factor = max(1.06, box_factor)
+                        else:
+                            box_factor = min(0.94, box_factor)
+                    elif m["box"] == 4:
+                        if m.get("speed_rank", 5) <= 3:
+                            box_factor = max(1.12, box_factor)
+                        elif m.get("speed_rank", 5) == 4:
+                            box_factor = max(1.02, box_factor)
+                        else:
+                            box_factor = min(0.95, box_factor)
+                    elif m["box"] == 1:
+                        if m.get("speed_rank", 5) <= 2:
+                            box_factor = max(1.10, box_factor)
+                        else:
+                            box_factor = min(0.92, box_factor)
+                    elif m["box"] == 2:
+                        if m.get("speed_rank", 5) <= 2:
+                            box_factor = max(1.06, box_factor)
+                        else:
+                            box_factor = min(0.90, box_factor)
+                    elif m["box"] in (3, 5):
+                        box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
+                else:  # 510m / 640m (Grandstand / home-straight start: strong rail advantage, Box 1 66.7% win rate)
+                    if m["box"] in (1, 2):
+                        box_factor = max(1.26, box_factor)
+                    elif m["box"] == 3:
+                        box_factor = max(1.12, box_factor)
+                    elif m["box"] in (7, 8):
+                        box_factor = max(1.08, box_factor)
+                    elif m["box"] in (4, 5, 6):
+                        box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
             elif "HEALESVILLE" in track_upper:
                 # Victoria Premier Straight Track (300m / 350m)
-                # Zero turns: Outside fence (Box 8) and inside rail (Boxes 1 & 2) dominate
-                if m["box"] in (1, 2): box_factor = max(1.24, box_factor)
-                elif m["box"] == 8: box_factor = max(1.24, box_factor)
-                elif m["box"] in (4, 5, 6, 7):
-                    box_factor = min(0.82, box_factor) if m.get("speed_rank", 5) > 2 else min(0.92, box_factor)
+                # Straight track: outside drag and rail guidance, middle boxes competitive
+                if m["box"] == 8: box_factor = max(1.20, box_factor)
+                elif m["box"] in (1, 2): box_factor = max(1.14, box_factor)
+                elif m["box"] == 6: box_factor = max(1.10, box_factor)
+                elif m["box"] in (4, 5, 7): box_factor = max(0.98, box_factor)
             elif any(t in track_upper for t in ["WARRNAMBOOL", "GEELONG", "TRARALGON"]):
                 if m["box"] in (1, 2, 3):
                     box_factor = max(1.18, box_factor)
@@ -1512,22 +1655,61 @@ class GreyhoundAnalytics:
                     if m["box"] in (1, 2): box_factor = max(1.22, box_factor)
                     elif m["box"] in (4, 5, 6): box_factor = min(0.85, box_factor) if m.get("speed_rank", 5) > 3 else box_factor
             elif "CASINO" in track_upper:
-                if distance <= 411:
-                    if m["box"] in (1, 2, 3) and m["speed_rank"] <= 2: box_factor = max(1.28, box_factor)
-                    elif m["box"] in (6, 7, 8) and m["speed_rank"] > 3: box_factor = min(0.84, box_factor)
+                if distance <= 320:  # 300m Short Sprint: Sharp turn 1, Box 1 rails consistently, Box 8 flings wide
+                    if m["box"] == 1:
+                        box_factor = max(1.22, box_factor)
+                    elif m["box"] in (2, 3):
+                        box_factor = max(1.18, box_factor) if m.get("speed_rank", 5) <= 3 else box_factor
+                    elif m["box"] == 8:
+                        box_factor = min(0.85, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
+                    elif m["box"] == 4:
+                        box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 3 else box_factor
+                elif distance <= 420:  # 411m Sprint
+                    if m["box"] in (1, 2, 3) and m.get("speed_rank", 5) <= 2:
+                        box_factor = max(1.24, box_factor)
+                    elif m["box"] in (6, 7, 8) and m.get("speed_rank", 5) > 3:
+                        box_factor = min(0.86, box_factor)
             elif "NOWRA" in track_upper:
-                # Tight South Coast NSW loop
+                # Albatross Road Circuit: 365m back-straight chute start with clear outer sweep.
+                # Empirical data (69 starts):
+                # - Outside boxes 5, 7, 8 win 58%+ of 365m races (Boxes 7 & 8: 22.2% each, Box 5: 28.6%)
+                # - Inside boxes 1 & 2 win only 11-16% (often checked/bunched entering bend)
+                # - Box 4 is the lowest strike box (8.3% win rate)
                 if distance <= 400:  # 365m Sprint
-                    # Short rush to turn 1. Inside railers dominate, wide runners flung wide
-                    if m["box"] in (1, 2): box_factor = max(1.26, box_factor)
-                    elif m["box"] == 3: box_factor = max(1.12, box_factor)
-                    elif m["box"] in (6, 7, 8):
-                        box_factor = min(0.82, box_factor) if m.get("speed_rank", 5) > 3 else box_factor
-                    elif m["box"] in (4, 5): box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
-                else:  # 520m / 630m
-                    if m["box"] in (1, 2): box_factor = max(1.22, box_factor)
-                    elif m["box"] == 8: box_factor = max(1.12, box_factor)
-                    elif m["box"] in (4, 5): box_factor = min(0.88, box_factor)
+                    if m["box"] in (7, 8):
+                        if m.get("speed_rank", 5) <= 4:
+                            box_factor = max(1.22, box_factor)
+                        else:
+                            box_factor = max(1.05, box_factor)
+                    elif m["box"] == 5:
+                        if m.get("speed_rank", 5) <= 3:
+                            box_factor = max(1.20, box_factor)
+                        else:
+                            box_factor = max(1.00, box_factor)
+                    elif m["box"] == 6:
+                        if m.get("speed_rank", 5) <= 3:
+                            box_factor = max(1.12, box_factor)
+                        else:
+                            box_factor = max(0.98, box_factor)
+                    elif m["box"] in (1, 2):
+                        if m.get("speed_rank", 5) <= 2:
+                            box_factor = max(1.14, box_factor)
+                        else:
+                            box_factor = min(0.95, box_factor)
+                    elif m["box"] == 3:
+                        if m.get("speed_rank", 5) <= 2:
+                            box_factor = max(1.08, box_factor)
+                        else:
+                            box_factor = max(0.98, box_factor)
+                    elif m["box"] == 4:
+                        box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
+                else:  # 520m / 630m (Box 8 dominates 520m with 33.3% win rate)
+                    if m["box"] == 8:
+                        box_factor = max(1.25, box_factor)
+                    elif m["box"] in (1, 3):
+                        box_factor = max(1.15, box_factor)
+                    elif m["box"] in (2, 4, 6):
+                        box_factor = min(0.88, box_factor) if m.get("speed_rank", 5) > 2 else box_factor
             elif "RICHMOND" in track_upper and not "STRAIGHT" in track_upper:
                 # Western Sydney Circular Track
                 if distance <= 410:  # 320m / 401m
@@ -1583,9 +1765,10 @@ class GreyhoundAnalytics:
             # --- QUEENSLAND ---
             elif "CAPALABA" in track_upper:
                 # Queensland Premier 366m Straight Track
-                # Guide rails on Box 1 & 8 dictate clean galloping lines
-                if m["box"] in (1, 8): box_factor = max(1.22, box_factor)
-                elif m["box"] in (4, 5): box_factor = min(0.86, box_factor)
+                # Guide rails on Box 1 & 8, middle and outside boxes competitive
+                if m["box"] in (1, 8): box_factor = max(1.18, box_factor)
+                elif m["box"] in (6, 7): box_factor = max(1.12, box_factor)
+                elif m["box"] in (4, 5): box_factor = max(1.02, box_factor)
             elif "Q STRAIGHT" in track_upper:
                 # 350m straight track at Purga QLD. Guide rail dynamics:
                 if m["box"] in (1, 8):
@@ -1761,21 +1944,53 @@ class GreyhoundAnalytics:
                     # 1.5 laps: pure motor and stamina override draw position
                     if m["box"] in (1, 2): box_factor = max(1.08, box_factor)
             elif "MANDURAH" in track_upper:
+                # Mandurah (Gordon Rd) Re-engineered Circuit:
+                # Empirical data (185 starts) confirms extreme inside rail dominance:
+                # - Rail Bias Index: 2.21x (Boxes 1 & 2 account for >53% of all winners)
+                # - Outside Sweep Index: 0.45x (Box 8: 0.0% win rate across 30+ race samples)
                 if distance <= 320:
-                    if m["box"] == 1: box_factor = max(1.18, box_factor) if m.get("speed_rank", 5) <= 3 and not has_motor_deficit else min(0.95, box_factor)
-                    elif m["box"] == 2: box_factor = max(1.14, box_factor) if m.get("speed_rank", 5) <= 3 and not has_motor_deficit else min(0.96, box_factor)
-                    elif m["box"] == 3: box_factor = max(1.10, box_factor) if m.get("speed_rank", 5) <= 3 else box_factor
-                    elif m["box"] in (4, 5): box_factor = max(1.02, box_factor) if m.get("speed_rank", 5) <= 2 else min(0.94, box_factor)
-                    elif m["box"] in (6, 7): box_factor = max(1.06, box_factor) if m.get("speed_rank", 5) <= 4 else min(0.96, box_factor)
-                    elif m["box"] == 8: box_factor = max(1.16, box_factor)
+                    # 300m Sprint from back-straight chute into tight home bend
+                    if m["box"] == 1:
+                        box_factor = max(1.28, box_factor * 1.25) if not has_motor_deficit else max(1.10, box_factor)
+                    elif m["box"] == 2:
+                        box_factor = max(1.22, box_factor * 1.20)
+                    elif m["box"] == 3:
+                        box_factor = max(1.05, box_factor)
+                    elif m["box"] in (4, 5):
+                        box_factor = min(0.90, box_factor * 0.90)
+                    elif m["box"] == 6:
+                        box_factor = min(0.90, box_factor * 0.90)
+                    elif m["box"] == 7:
+                        box_factor = min(0.88, box_factor * 0.88)
+                    elif m["box"] == 8:
+                        # Box 8: Trapped wide on tight bend, 0 wins in sample
+                        box_factor = min(0.82, box_factor * 0.80)
                 elif distance <= 420:
-                    if m["box"] in (1, 2): box_factor = max(1.18, box_factor)
-                    elif m["box"] in (4, 5): box_factor = max(1.04, box_factor) if m.get("speed_rank", 5) <= 3 else min(0.92, box_factor)
-                    elif m["box"] in (7, 8): box_factor = max(1.08, box_factor) if m.get("speed_rank", 5) <= 3 else box_factor
-                    elif m["box"] == 6: box_factor = min(0.92, box_factor)
+                    # 400m One-turn Sprint:
+                    # Box 1 is an inside fortress (42.9% empirical strike rate)
+                    if m["box"] == 1:
+                        box_factor = max(1.30, box_factor * 1.26)
+                    elif m["box"] == 2:
+                        box_factor = max(1.18, box_factor * 1.15)
+                    elif m["box"] == 3:
+                        box_factor = max(1.02, box_factor)
+                    elif m["box"] in (4, 5):
+                        box_factor = min(0.90, box_factor * 0.90)
+                    elif m["box"] == 6:
+                        box_factor = min(0.88, box_factor * 0.88)
+                    elif m["box"] in (7, 8):
+                        if m.get("speed_rank", 5) == 1:
+                            box_factor = min(0.96, box_factor)
+                        else:
+                            box_factor = min(0.84, box_factor * 0.82)
                 elif distance >= 480:
-                    if m["box"] in (1, 2): box_factor = max(1.22, box_factor)
-                    elif m["box"] in (5, 6): box_factor = min(0.88, box_factor)
+                    # 488m Standard Distance:
+                    if m["box"] in (1, 2):
+                        box_factor = max(1.25, box_factor * 1.20)
+                    elif m["box"] in (4, 5):
+                        box_factor = min(0.90, box_factor * 0.90)
+                    elif m["box"] in (6, 7, 8):
+                        box_factor = min(0.88, box_factor * 0.85)
             elif "NORTHAM" in track_upper:
                 if distance == 509:
                     if m["box"] in (1, 8): box_factor = max(1.20, box_factor)
@@ -1865,7 +2080,10 @@ class GreyhoundAnalytics:
             # it has proven trap competency and exits without traffic hesitation:
             if m.get("dog_id") and m["box"] in (4, 5, 6):
                 try:
-                    cursor.execute("SELECT finish_pos, box FROM past_performances WHERE dog_id = ? ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC LIMIT 5", (m["dog_id"],))
+                    if meeting_date:
+                        cursor.execute("SELECT finish_pos, box FROM past_performances WHERE dog_id = ? AND coalesce(run_date_iso, run_date) < ? ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC LIMIT 5", (m["dog_id"], meeting_date))
+                    else:
+                        cursor.execute("SELECT finish_pos, box FROM past_performances WHERE dog_id = ? ORDER BY coalesce(run_date_iso, run_date) DESC, id ASC LIMIT 5", (m["dog_id"],))
                     rec_starts = [dict(row) for row in cursor.fetchall()]
                     if any(str(st["finish_pos"]).startswith("1") and st["box"] == m["box"] for st in rec_starts):
                         box_factor = max(0.96, box_factor)
@@ -2176,7 +2394,7 @@ class GreyhoundAnalytics:
                 # C2. Box 6 Awkward Bend Trap on Circular Tracks:
                 # If Box 6 lacks early speed to clear dogs on its inside (inside runners within 0.02s of its split),
                 # it cannot cross to the rail and gets trapped 3-wide around the first turn
-                is_chute_or_wide_track = any(t in track_upper for t in ["MANDURAH", "HOBART"])
+                is_chute_or_wide_track = any(t in track_upper for t in ["HOBART"]) or is_outside_sweep_track
                 if m["box"] == 6 and not is_chute_or_wide_track:
                     inside_pace_contested = any(
                         other["split_1"] <= (m["split_1"] + 0.02)
@@ -2187,8 +2405,8 @@ class GreyhoundAnalytics:
 
                 # C3. "Carted Wide" Penalty for Outside Boxes (7, 8):
                 # On tight circular tracks without long straight run-ups, if an outside dog lacks pace,
-                # it gets carried wide on the bend. Chute/wide starts (e.g. Mandurah 300m/400m, Hobart 340m/461m) feature straight runs
-                # where outside runners enjoy unimpeded accelerating lanes and do not suffer this penalty.
+                # it gets carried wide on the bend. Chute/wide starts and outside-sweep tracks (e.g. Sale 435m)
+                # feature wide banking camber where outside runners enjoy unimpeded accelerating lanes.
                 if m["box"] in (7, 8) and not is_chute_or_wide_track:
                     immediate_inside = m["box"] - 1
                     while immediate_inside in vacant_or_scratched and immediate_inside > 1:
@@ -2210,15 +2428,16 @@ class GreyhoundAnalytics:
                 # D. Outside Clean-Air Sweep Bonus for Box 8 (and Box 7):
                 # Only granted if the dog possesses elite early pace AND proven motor AND isn't getting carted wide!
                 is_carted_wide = False
-                immediate_inside = m["box"] - 1
-                while immediate_inside in vacant_or_scratched and immediate_inside > 1:
-                    immediate_inside -= 1
-                
-                if immediate_inside not in vacant_or_scratched:
-                    inside_dog = next((other for other in runner_metrics if other["box"] == immediate_inside), None)
-                    if inside_dog and inside_dog["split_1"] is not None and m["split_1"] is not None:
-                        if inside_dog["split_1"] <= m["split_1"] + 0.04:
-                            is_carted_wide = True
+                if not is_outside_sweep_track:
+                    immediate_inside = m["box"] - 1
+                    while immediate_inside in vacant_or_scratched and immediate_inside > 1:
+                        immediate_inside -= 1
+                    
+                    if immediate_inside not in vacant_or_scratched:
+                        inside_dog = next((other for other in runner_metrics if other["box"] == immediate_inside), None)
+                        if inside_dog and inside_dog["split_1"] is not None and m["split_1"] is not None:
+                            if inside_dog["split_1"] <= m["split_1"] + 0.04:
+                                is_carted_wide = True
 
                 if m["box"] == 8 and not is_carted_wide:
                     if "MEADOWS" in track_upper and distance == 525:
@@ -2331,10 +2550,12 @@ class GreyhoundAnalytics:
 
             # --- NOWRA 365M FIRST TURN DYNAMICS ---
             if "NOWRA" in track_upper and distance <= 380:
-                if m["box"] == 1 and m.get("speed_rank", 5) <= 3:
-                    squeeze_factor *= 1.10  # Rail hold into tight South Coast first turn
-                elif m["box"] in (4, 5) and m.get("speed_rank", 5) > 2:
-                    squeeze_factor *= 0.88  # Severe middle pinch
+                if m["box"] == 1 and m.get("speed_rank", 5) <= 2:
+                    squeeze_factor *= 1.05  # Gentle rail hold if breaking clean
+                elif m["box"] == 4 and m.get("speed_rank", 5) > 2:
+                    squeeze_factor *= 0.88  # Middle pinch
+                elif m["box"] in (7, 8) and m.get("speed_rank", 5) <= 4:
+                    squeeze_factor *= 1.06  # Clean outer galloping lane down back straight
 
             # --- ROCKHAMPTON 407M FIRST TURN DYNAMICS ---
             if "ROCKHAMPTON" in track_upper and distance <= 420:
@@ -2436,12 +2657,20 @@ class GreyhoundAnalytics:
         exp_scores = [math.exp((sr["power_score"] - max_score) / temperature) for sr in scored_runners]
         sum_exp = sum(exp_scores)
 
+        has_market_odds = any(
+            (sr.get("sportsbet_odds") or sr.get("market_odds") or 0.0) > 1.0
+            for sr in scored_runners
+        )
         raw_win_probs = [exp_val / sum_exp for exp_val in exp_scores]
-        # Cap Perennial Runner-Up win probability (shifting probability to the field while keeping place prob high)
+        # Cap Perennial Runner-Up win probability & ungrounded blowout favorites in no-odds / maiden fields
         adjusted_win_probs = []
         for sr, wp in zip(scored_runners, raw_win_probs):
             if sr.get("is_second_place_specialist") and wp > 0.32:
                 adjusted_win_probs.append(0.32)
+            elif not has_market_odds and wp > 0.65:
+                # In races without bookmaker/tote market odds to anchor probability,
+                # no greyhound can realistically exceed 65% win probability due to canine collision & break variance
+                adjusted_win_probs.append(0.65)
             else:
                 adjusted_win_probs.append(wp)
 
@@ -2494,10 +2723,12 @@ class GreyhoundAnalytics:
                         runner_w_mkt = min(runner_w_mkt, 0.28)
                 else:
                     # General Adaptive runner-level market weighting:
-                    if p_mkt >= 0.30:
-                        runner_w_mkt = max(runner_w_mkt, 0.48)
+                    if p_mkt >= 0.40:
+                        runner_w_mkt = max(runner_w_mkt, 0.65)
+                    elif p_mkt >= 0.30:
+                        runner_w_mkt = max(runner_w_mkt, 0.52)
                     elif (sr.get("best_time") is None or sr.get("is_synthesized_pb") or sr.get("split_1") == avg_race_split) and p_mkt >= 0.18:
-                        runner_w_mkt = max(runner_w_mkt, 0.45)
+                        runner_w_mkt = max(runner_w_mkt, 0.55)
                     elif p_mkt <= 0.03 and sr.get("form_score", 5.0) < 3.5:
                         runner_w_mkt = max(runner_w_mkt, 0.60)
                     elif p_mkt <= 0.05 and sr.get("form_score", 5.0) < 3.2:

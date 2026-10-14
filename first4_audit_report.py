@@ -50,7 +50,8 @@ def get_actual_effective_box(row: sqlite3.Row) -> int:
 def generate_first4_audit(
     date_str: Optional[str] = None,
     track_filter: Optional[str] = None,
-    distance_filter: Optional[int] = None
+    distance_filter: Optional[int] = None,
+    current_only: Optional[bool] = False
 ) -> Dict[str, Any]:
     """
     Computes First 4 and exotic hit rates comparing model predictions to actual results.
@@ -348,6 +349,55 @@ def generate_first4_audit(
             "badges": badges
         })
 
+    # Discover meeting totals and remaining races for all tracks today and on target date
+    today_str = datetime.date.today().isoformat()
+    c.execute("""
+        SELECT m.track_name,
+               COUNT(r.id) as total_races,
+               SUM(CASE WHEN EXISTS (
+                   SELECT 1 FROM race_runners rr
+                   WHERE rr.race_id = r.id AND rr.finish_position = 1
+               ) THEN 1 ELSE 0 END) as completed_races
+        FROM meetings m
+        JOIN races r ON r.meeting_id = m.id
+        WHERE m.meeting_date = ?
+        GROUP BY m.track_name
+    """, (date_str,))
+    date_track_meetings = {}
+    for row in c.fetchall():
+        tot = row["total_races"] or 0
+        comp = row["completed_races"] or 0
+        rem = max(0, tot - comp)
+        date_track_meetings[row["track_name"]] = {
+            "total_races": tot,
+            "completed_races": comp,
+            "remaining_races": rem,
+        }
+
+    today_active_tracks = {}
+    if date_str != today_str:
+        c.execute("""
+            SELECT m.track_name,
+                   COUNT(r.id) as total_races,
+                   SUM(CASE WHEN EXISTS (
+                       SELECT 1 FROM race_runners rr
+                       WHERE rr.race_id = r.id AND rr.finish_position = 1
+                   ) THEN 1 ELSE 0 END) as completed_races
+            FROM meetings m
+            JOIN races r ON r.meeting_id = m.id
+            WHERE m.meeting_date = ?
+            GROUP BY m.track_name
+        """, (today_str,))
+        for row in c.fetchall():
+            tot = row["total_races"] or 0
+            comp = row["completed_races"] or 0
+            rem = max(0, tot - comp)
+            today_active_tracks[row["track_name"]] = {
+                "total_races": tot,
+                "completed_races": comp,
+                "remaining_races": rem,
+            }
+
     conn.close()
 
     total = summary["total_completed"]
@@ -385,7 +435,31 @@ def generate_first4_audit(
             "exact_first4_pct": round(item["exact_first4"] / n * 100, 1) if n else 0.0,
         }
 
-    formatted_tracks = [add_pcts(s) for s in sorted(track_stats.values(), key=lambda x: x["races"], reverse=True)]
+    all_formatted_tracks = [add_pcts(s) for s in sorted(track_stats.values(), key=lambda x: x["races"], reverse=True)]
+    for item in all_formatted_tracks:
+        t_name = item["track"]
+        d_info = date_track_meetings.get(t_name, {})
+        tot = d_info.get("total_races", item["races"])
+        rem = d_info.get("remaining_races", 0)
+
+        if date_str == today_str:
+            is_current = (rem > 0)
+            remaining_today = rem
+        else:
+            t_today_info = today_active_tracks.get(t_name)
+            if t_today_info:
+                remaining_today = t_today_info.get("remaining_races", 0)
+                is_current = (remaining_today > 0)
+            else:
+                remaining_today = 0
+                is_current = (rem > 0)
+
+        item["total_meeting_races"] = tot
+        item["completed_meeting_races"] = d_info.get("completed_races", item["races"])
+        item["remaining_races"] = remaining_today if (date_str != today_str and t_name in today_active_tracks) else rem
+        item["is_current_location"] = is_current
+
+    filtered_tracks = [t for t in all_formatted_tracks if t.get("is_current_location", False)] if current_only else all_formatted_tracks
     formatted_dists = [add_pcts(s) for s in sorted(dist_stats.values(), key=lambda x: x["distance"])]
     formatted_tds = [add_pcts(s) for s in sorted(td_stats.values(), key=lambda x: (x["track"], x["distance"]))]
 
@@ -393,8 +467,12 @@ def generate_first4_audit(
         "date": date_str,
         "track_filter": track_filter,
         "distance_filter": distance_filter,
+        "current_only": bool(current_only),
+        "current_tracks_count": len([t for t in all_formatted_tracks if t.get("is_current_location", False)]),
+        "total_tracks_count": len(all_formatted_tracks),
         "summary": summary,
-        "breakdown_by_track": formatted_tracks,
+        "breakdown_by_track": filtered_tracks,
+        "all_tracks_breakdown": all_formatted_tracks,
         "breakdown_by_distance": formatted_dists,
         "breakdown_by_track_distance": formatted_tds,
         "races": race_records,
@@ -417,10 +495,11 @@ def print_cli_report(audit_data: Dict[str, Any], show_races: bool = True):
     date_str = audit_data["date"]
     t_filt = audit_data["track_filter"] or "All Tracks"
     d_filt = f"{audit_data['distance_filter']}m" if audit_data["distance_filter"] else "All Distances"
+    c_filt = " | [Current Locations Only: Yes]" if audit_data.get("current_only") else ""
 
     print("\n" + "=" * 84)
     print(f"       GREYHOUND FIRST 4 & EXOTIC AUDIT REPORT -- {date_str}")
-    print(f"       Filter: [Location: {t_filt}] | [Distance: {d_filt}]")
+    print(f"       Filter: [Location: {t_filt}] | [Distance: {d_filt}]{c_filt}")
     print("=" * 84)
 
     if total == 0:
@@ -455,14 +534,16 @@ def print_cli_report(audit_data: Dict[str, Any], show_races: bool = True):
         print(f"   {k}/4 overlap : {c:>2}/{total} ({pct:>5.1f}%) {bar}")
 
     # Track Breakdown Table
-    print("\n" + "-" * 88)
-    print(" 2. BREAKDOWN BY TRACK LOCATION")
-    print("-" * 88)
-    print(f" {'Track Name':<16} | {'Races':<5} | {'Top 1 Win':<11} | {'3+ in 4':<10} | {'4-Dog F4':<10} | {'5-Dog F4':<10} | {'6-Dog F4':<10}")
-    print(" " + "-" * 86)
+    print("\n" + "-" * 98)
+    print(" 2. BREAKDOWN BY TRACK LOCATION" + (" (Current Race Locations Only)" if audit_data.get("current_only") else ""))
+    print("-" * 98)
+    print(f" {'Track Name':<16} | {'Status':<12} | {'Races':<5} | {'Top 1 Win':<11} | {'3+ in 4':<10} | {'4-Dog F4':<10} | {'5-Dog F4':<10} | {'6-Dog F4':<10}")
+    print(" " + "-" * 96)
     for t in audit_data["breakdown_by_track"]:
         r = t["races"]
-        print(f" {t['track']:<16} | {r:<5} | {t['win_top1']:>2}/{r} ({t['win_top1_pct']:>4.1f}%) | {t['srm_3plus']:>2}/{r} ({t['srm_3plus_pct']:>4.1f}%) | {t['boxed_first4_4dog']:>2}/{r} ({t['boxed_first4_4dog_pct']:>4.1f}%) | {t['boxed_first4_5dog']:>2}/{r} ({t['boxed_first4_5dog_pct']:>4.1f}%) | {t['boxed_first4_6dog']:>2}/{r} ({t['boxed_first4_6dog_pct']:>4.1f}%)")
+        rem = t.get("remaining_races", 0)
+        status = f"{rem} left" if t.get("is_current_location") else "Done"
+        print(f" {t['track']:<16} | {status:<12} | {r:<5} | {t['win_top1']:>2}/{r} ({t['win_top1_pct']:>4.1f}%) | {t['srm_3plus']:>2}/{r} ({t['srm_3plus_pct']:>4.1f}%) | {t['boxed_first4_4dog']:>2}/{r} ({t['boxed_first4_4dog_pct']:>4.1f}%) | {t['boxed_first4_5dog']:>2}/{r} ({t['boxed_first4_5dog_pct']:>4.1f}%) | {t['boxed_first4_6dog']:>2}/{r} ({t['boxed_first4_6dog_pct']:>4.1f}%)")
 
     # Distance Breakdown Table
     print("\n" + "-" * 88)
@@ -497,6 +578,7 @@ def main():
     parser.add_argument("--date", type=str, default=None, help="Race date (YYYY-MM-DD), defaults to today")
     parser.add_argument("-t", "--track", type=str, default=None, help="Filter by track location (e.g. 'Meadows', 'Bendigo')")
     parser.add_argument("-d", "--distance", type=int, default=None, help="Filter by race distance (e.g. 525, 400)")
+    parser.add_argument("--current-only", action="store_true", help="Only show track performance from current race locations with remaining races today")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
     parser.add_argument("--no-races", action="store_true", help="Omit race-by-race table from CLI output")
 
@@ -505,7 +587,8 @@ def main():
     audit = generate_first4_audit(
         date_str=args.date,
         track_filter=args.track,
-        distance_filter=args.distance
+        distance_filter=args.distance,
+        current_only=args.current_only
     )
 
     if args.json:

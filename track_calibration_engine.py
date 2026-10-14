@@ -63,9 +63,9 @@ class TrackCalibrationEngine:
     @staticmethod
     def get_distance_band(distance: int) -> str:
         """Classify race distance into standard sprint/middle/staying bands."""
-        if not distance or distance <= 420:
+        if not distance or distance <= 465:
             return "sprint"
-        elif distance <= 560:
+        elif distance <= 580:
             return "middle"
         else:
             return "staying"
@@ -84,8 +84,8 @@ class TrackCalibrationEngine:
             c.execute("""
                 SELECT DISTINCT m.track_name, 
                        CASE 
-                           WHEN r.distance <= 420 THEN 'sprint'
-                           WHEN r.distance <= 560 THEN 'middle'
+                           WHEN r.distance <= 465 THEN 'sprint'
+                           WHEN r.distance <= 580 THEN 'middle'
                            ELSE 'staying'
                        END as band
                 FROM race_runners rr
@@ -130,10 +130,10 @@ class TrackCalibrationEngine:
 
             # Define distance bounds for band
             dist_filter = {
-                "sprint": "r.distance <= 420",
-                "middle": "r.distance > 420 AND r.distance <= 560",
-                "staying": "r.distance > 560"
-            }.get(distance_band, "r.distance <= 420")
+                "sprint": "r.distance <= 465",
+                "middle": "r.distance > 465 AND r.distance <= 580",
+                "staying": "r.distance > 580"
+            }.get(distance_band, "r.distance <= 465")
 
             # 1. Fetch finished runners
             query = f"""
@@ -216,10 +216,15 @@ class TrackCalibrationEngine:
             out_starts = box_tally[7]["starts"] + box_tally[8]["starts"]
             out_wins = box_tally[7]["wins"] + box_tally[8]["wins"]
 
-            in_rate = (in_wins / max(1, in_starts))
-            out_rate = (out_wins / max(1, out_starts))
-            rail_bias_index = round(in_rate / max(0.01, out_rate), 2)
-            outside_sweep_index = round(out_rate / max(0.01, in_rate), 2)
+            # Bayesian smoothed inside vs outside rates (shrunk toward neutral 25% prior)
+            # Boxes 1 & 2 represent 2/8 (25%) of field. Boxes 7 & 8 represent 2/8 (25%) of field.
+            # alpha_bias = 24.0 pseudo-starts prevents small samples (1-2 meetings) from creating wild bias spikes.
+            alpha_bias = 24.0
+            prior_rate = 0.25
+            shrunk_in_rate = (in_wins + alpha_bias * prior_rate) / (in_starts + alpha_bias)
+            shrunk_out_rate = (out_wins + alpha_bias * prior_rate) / (out_starts + alpha_bias)
+            rail_bias_index = round(shrunk_in_rate / max(0.01, shrunk_out_rate), 2)
+            outside_sweep_index = round(shrunk_out_rate / max(0.01, shrunk_in_rate), 2)
 
             # Early Split Dominance:
             # % of races where the dog with the fastest (or within 0.05s of fastest) split won

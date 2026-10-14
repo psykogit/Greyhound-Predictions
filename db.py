@@ -115,6 +115,26 @@ def init_db(db_path: Optional[Path] = None) -> None:
         cursor.execute("ALTER TABLE weather_records ADD COLUMN apparent_temperature REAL;")
     except Exception:
         pass
+    try:
+        cursor.execute("ALTER TABLE race_runners ADD COLUMN card_split_1 REAL;")
+    except Exception:
+        pass
+    try:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS odds_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            race_id INTEGER NOT NULL,
+            runner_id INTEGER,
+            box_number INTEGER NOT NULL,
+            bookmaker TEXT NOT NULL,
+            win_odds REAL,
+            place_odds REAL,
+            snapshot_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_odds_snapshots_race_box ON odds_snapshots(race_id, box_number, snapshot_time);")
+    except Exception:
+        pass
 
     # 5. Greyhounds Master Table
     cursor.execute("""

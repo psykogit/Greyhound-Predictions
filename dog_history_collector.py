@@ -65,7 +65,10 @@ class DogHistoryCollector:
             if resp.status_code != 200:
                 print(f"[DogCollector] Failed fetching {url}: Status {resp.status_code}")
                 return None
-            soup = BeautifulSoup(resp.text, "lxml")
+            try:
+                soup = BeautifulSoup(resp.text, "lxml")
+            except Exception:
+                soup = BeautifulSoup(resp.text, "html.parser")
         except Exception as e:
             print(f"[DogCollector] HTTP Error on {url}: {e}")
             return None

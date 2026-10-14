@@ -662,6 +662,12 @@
                 </select>
               </div>
 
+              <!-- Current Race Locations Only Filter Toggle -->
+              <button type="button" id="btn-toggle-current-locations" onclick="toggleCurrentLocationsFilter()" class="flex items-center space-x-2 bg-navy-600 hover:bg-navy-500 border border-navy-500 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition cursor-pointer" title="Only display track performance from current race locations where races are still happening today">
+                <span id="current-tracks-indicator" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span id="current-tracks-btn-text">Current Locations Only</span>
+              </button>
+
               <button onclick="runLearningAudit()" id="btn-run-learning" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs font-bold flex items-center space-x-2 transition shadow">
                 <i class="fa-solid fa-rotate text-[10px]"></i>
                 <span>Refresh Audit</span>
@@ -740,9 +746,22 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <!-- Track Performance (2 cols) -->
           <div class="lg:col-span-2 card overflow-hidden">
-            <div class="p-3.5 card-header flex items-center justify-between">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-white">Track Performance Breakdown</h4>
-              <span class="text-[11px] text-slate-400">Ranked by volume of completed races</span>
+            <div class="p-3.5 card-header flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center space-x-2">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-white">Track Performance Breakdown</h4>
+                <span id="track-filter-status-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-500/50">
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1"></span>Current Locations
+                </span>
+              </div>
+              <div class="flex items-center space-x-1.5 text-xs">
+                <button type="button" id="btn-track-filter-all" onclick="setTrackViewMode('all')" class="px-2.5 py-1 rounded text-[11px] font-bold bg-purple-600 text-white shadow transition">
+                  All Locations (<span id="track-count-all">0</span>)
+                </button>
+                <button type="button" id="btn-track-filter-current" onclick="setTrackViewMode('current')" class="px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white bg-navy-600 hover:bg-navy-500 border border-navy-500 transition flex items-center space-x-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Current Locations (<span id="track-count-current">0</span>)</span>
+                </button>
+              </div>
             </div>
             <div class="overflow-x-auto max-h-[380px]">
               <table class="w-full text-left text-xs border-collapse">
@@ -2717,28 +2736,10 @@ ${finishBadge}
         const soCountEl = document.getElementById('learn-standout-count');
         if (soCountEl) soCountEl.textContent = `${summary.key_standout_f4 || 0} / ${total}`;
 
-        // Populate Track Performance Table (with Multi-Tier First 4 columns)
-        if (tracksTbody) {
-          const tracks = data.breakdown_by_track || [];
-          if (tracks.length === 0) {
-            tracksTbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-500">No completed races found for this track filter.</td></tr>';
-          } else {
-            tracksTbody.innerHTML = tracks.map(t => `
-              <tr class="hover:bg-[#1f242c] transition">
-                <td class="p-2.5 font-bold text-white flex items-center space-x-1.5">
-                  <i class="fa-solid fa-location-dot text-[10px] text-cyan-400"></i>
-                  <span>${t.track}</span>
-                </td>
-                <td class="p-2.5 text-center font-mono text-slate-300">${t.races}</td>
-                <td class="p-2.5 text-right font-mono font-bold text-accent-teal">${t.win_top1_pct.toFixed(1)}%</td>
-                <td class="p-2.5 text-right font-mono text-amber-300 font-bold">${t.srm_3plus_pct.toFixed(1)}%</td>
-                <td class="p-2.5 text-right font-mono text-yellow-300">${(t.boxed_first4_4dog_pct || 0).toFixed(1)}%</td>
-                <td class="p-2.5 text-right font-mono text-cyan-300">${(t.boxed_first4_5dog_pct || 0).toFixed(1)}%</td>
-                <td class="p-2.5 text-right font-mono font-bold text-purple-300">${(t.boxed_first4_6dog_pct || 0).toFixed(1)}%</td>
-              </tr>
-            `).join('');
-          }
-        }
+        // Populate Track Performance Table (with Live/Current Locations filter support)
+        lastAuditData = data;
+        updateTrackFilterUI();
+        renderTrackPerformanceTable();
 
         // Populate Distance Breakdown Table (with Multi-Tier First 4 columns)
         if (distTbody) {
@@ -2775,6 +2776,112 @@ ${finishBadge}
           btn.innerHTML = '<i class="fa-solid fa-rotate text-[10px]"></i><span>Refresh Audit</span>';
         }
       }
+    }
+
+    // Global audit state & track/tier filtering
+    let lastAuditData = null;
+    let trackPerformanceFilterMode = 'all'; // 'all' or 'current'
+
+    function toggleCurrentLocationsFilter() {
+      const newMode = (trackPerformanceFilterMode === 'current') ? 'all' : 'current';
+      setTrackViewMode(newMode);
+    }
+
+    function setTrackViewMode(mode) {
+      trackPerformanceFilterMode = mode;
+      updateTrackFilterUI();
+      renderTrackPerformanceTable();
+    }
+
+    function updateTrackFilterUI() {
+      const isCurrent = (trackPerformanceFilterMode === 'current');
+      const btnAll = document.getElementById('btn-track-filter-all');
+      const btnCurrent = document.getElementById('btn-track-filter-current');
+      const badge = document.getElementById('track-filter-status-badge');
+      const topBtn = document.getElementById('btn-toggle-current-locations');
+      const indicator = document.getElementById('current-tracks-indicator');
+
+      if (btnAll && btnCurrent) {
+        if (isCurrent) {
+          btnAll.className = 'px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white bg-navy-600 hover:bg-navy-500 border border-navy-500 transition';
+          btnCurrent.className = 'px-2.5 py-1 rounded text-[11px] font-bold bg-emerald-600 text-white border border-emerald-400 shadow transition flex items-center space-x-1.5';
+        } else {
+          btnAll.className = 'px-2.5 py-1 rounded text-[11px] font-bold bg-purple-600 text-white shadow transition';
+          btnCurrent.className = 'px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white bg-navy-600 hover:bg-navy-500 border border-navy-500 transition flex items-center space-x-1.5';
+        }
+      }
+
+      if (badge) {
+        badge.classList.toggle('hidden', !isCurrent);
+      }
+
+      if (topBtn && indicator) {
+        if (isCurrent) {
+          topBtn.className = 'flex items-center space-x-2 bg-emerald-950/70 border border-emerald-500/80 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-300 transition shadow cursor-pointer';
+          indicator.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        } else {
+          topBtn.className = 'flex items-center space-x-2 bg-navy-600 hover:bg-navy-500 border border-navy-500 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition cursor-pointer';
+          indicator.className = 'w-2 h-2 rounded-full bg-slate-400';
+        }
+      }
+    }
+
+    function renderTrackPerformanceTable() {
+      const tracksTbody = document.getElementById('learning-tracks-tbody');
+      if (!tracksTbody) return;
+      if (!lastAuditData) {
+        tracksTbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td></tr>';
+        return;
+      }
+
+      const allTracks = lastAuditData.all_tracks_breakdown || lastAuditData.breakdown_by_track || [];
+      const currentTracks = allTracks.filter(t => t.is_current_location === true);
+
+      // Update counters in header buttons
+      const countAllEl = document.getElementById('track-count-all');
+      if (countAllEl) countAllEl.textContent = allTracks.length;
+      const countCurrentEl = document.getElementById('track-count-current');
+      if (countCurrentEl) countCurrentEl.textContent = currentTracks.length;
+
+      const tracksToDisplay = (trackPerformanceFilterMode === 'current') ? currentTracks : allTracks;
+
+      if (tracksToDisplay.length === 0) {
+        if (trackPerformanceFilterMode === 'current') {
+          tracksTbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400"><div class="flex flex-col items-center justify-center space-y-1"><i class="fa-solid fa-flag-checkered text-emerald-400 text-lg mb-1"></i><span class="font-semibold text-slate-300">No active meetings with remaining races scheduled today.</span><span class="text-[11px] text-slate-500">All race locations on this date have concluded.</span></div></td></tr>';
+        } else {
+          tracksTbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-500">No completed races found for this track filter.</td></tr>';
+        }
+        return;
+      }
+
+      tracksTbody.innerHTML = tracksToDisplay.map(t => {
+        const isCurrent = t.is_current_location;
+        const rem = t.remaining_races || 0;
+        const tot = t.total_meeting_races || t.races;
+
+        let statusBadge = '';
+        if (isCurrent) {
+          statusBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 inline-flex items-center gap-1 shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>${rem} left</span></span>`;
+        } else {
+          statusBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-navy-700/60 text-slate-400 border border-navy-500/50 inline-flex items-center">Done (${tot}/${tot})</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-[#1f242c] transition">
+            <td class="p-2.5 font-bold text-white flex items-center space-x-1.5 flex-wrap">
+              <i class="fa-solid fa-location-dot text-[10px] ${isCurrent ? 'text-emerald-400' : 'text-cyan-400'}"></i>
+              <span>${t.track}</span>
+              ${statusBadge}
+            </td>
+            <td class="p-2.5 text-center font-mono text-slate-300">${t.races}</td>
+            <td class="p-2.5 text-right font-mono font-bold text-accent-teal">${t.win_top1_pct.toFixed(1)}%</td>
+            <td class="p-2.5 text-right font-mono text-amber-300 font-bold">${t.srm_3plus_pct.toFixed(1)}%</td>
+            <td class="p-2.5 text-right font-mono text-yellow-300">${(t.boxed_first4_4dog_pct || 0).toFixed(1)}%</td>
+            <td class="p-2.5 text-right font-mono text-cyan-300">${(t.boxed_first4_5dog_pct || 0).toFixed(1)}%</td>
+            <td class="p-2.5 text-right font-mono font-bold text-purple-300">${(t.boxed_first4_6dog_pct || 0).toFixed(1)}%</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     // Global audit state & tier filtering

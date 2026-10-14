@@ -63,5 +63,30 @@ def test_simulation():
     conn.commit()
     conn.close()
 
+def test_sale_calibration():
+    from track_calibration_engine import TrackCalibrationEngine
+    tce = TrackCalibrationEngine()
+    calib = tce.get_track_calibration('Sale', 435)
+    
+    # Verify distance band and empirical sweep bias
+    assert calib is not None
+    assert calib.get("is_calibrated") is True
+    assert calib.get("outside_sweep_index", 0.0) >= 1.40
+    assert calib.get("rail_bias_index", 1.0) < 0.80
+
+    analytics = GreyhoundAnalytics()
+    # Race 1: Box 6 (Starts Monday) was the actual winner and model top pick with Bayesian shrinkage
+    p1 = analytics.predict_race_probabilities(1638)
+    assert p1[0]["box"] == 6
+    assert p1[0]["model_win_prob"] > 0.30  # Clear top pick with Bayesian shrinkage applied
+
+    # Race 2: Dr Freddy (Box 3) must be derisked due to rookie inside pinch on outside sweep track
+    p2 = analytics.predict_race_probabilities(1639)
+    freddy = next((p for p in p2 if p["box"] == 3), None)
+    assert freddy is not None
+    assert freddy["model_win_prob"] < 0.25  # Capped and derisked from old 40.7%
+
 if __name__ == "__main__":
     test_simulation()
+    test_sale_calibration()
+

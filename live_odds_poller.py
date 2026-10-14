@@ -41,7 +41,10 @@ class LiveOddsPoller:
             print(f"[LiveOddsPoller] Request failed for {odds_url}: {e}")
             return {}
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        try:
+            soup = BeautifulSoup(resp.text, "lxml")
+        except Exception:
+            soup = BeautifulSoup(resp.text, "html.parser")
         odds_map: Dict[int, float] = {}
 
         rows = soup.find_all("tr", class_=lambda c: c and "race-runner" in c)

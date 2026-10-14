@@ -19,6 +19,7 @@ from analytics import GreyhoundAnalytics
 from multi_optimizer import MultiBetOptimizer
 from dog_hydration_daemon import DogHydrationWorker
 from daily_learning_engine import DailyLearningEngine
+from walk_forward_evaluation import WalkForwardEvaluator
 from typing import Optional
 
 
@@ -379,6 +380,46 @@ def cmd_auto_tune(min_races: int = 4):
     print(f"Successfully tuned {res.get('tracks_calibrated', 0)} tracks.")
 
 
+def cmd_walk_forward(min_history_days: int = 2, max_test_days: Optional[int] = None):
+    evaluator = WalkForwardEvaluator()
+    evaluator.run_walk_forward(min_history_days=min_history_days, max_test_days=max_test_days, verbose=True)
+
+
+def cmd_import_history(path: str, no_calibrate: bool = False):
+    from history_importer import HistoryImporter
+    from pathlib import Path
+    importer = HistoryImporter()
+    p = Path(path)
+    if p.is_dir():
+        res = importer.import_directory(str(p), auto_calibrate=not no_calibrate)
+    else:
+        res = importer.import_file(str(p), auto_calibrate=not no_calibrate)
+
+    print("\n" + "=" * 60)
+    print("HISTORICAL RACE DATA IMPORT SUMMARY")
+    print("=" * 60)
+    print(f"Status:                      {res.get('status')}")
+    print(f"Total Runner Rows Ingested:  {res.get('runners_imported', 0)}")
+    print(f"Meetings Created/Updated:    {res.get('meetings_count', 0)}")
+    print(f"Races Created/Updated:       {res.get('races_count', 0)}")
+    print(f"Past Performances Logged:    {res.get('past_performances_created', 0)}")
+    print(f"Date Range Covered:          {res.get('date_range', 'None')}")
+    print(f"Tracks Imported ({res.get('tracks_count', 0)}):     {', '.join(res.get('tracks', []))}")
+    if res.get("calibration"):
+        cal = res["calibration"]
+        print(f"Tracks Recalibrated:         {cal.get('tracks_calibrated', 0)}")
+        print(f"Empirical Harville Gammas:   {cal.get('empirical_discount_gammas')}")
+    print("=" * 60 + "\n")
+
+
+def cmd_generate_template(csv_path: str = "sample_race_history.csv", json_path: str = "sample_race_history.json"):
+    from history_importer import HistoryImporter
+    c, j = HistoryImporter.generate_template(csv_path, json_path)
+    print(f"[+] Successfully generated sample import templates:")
+    print(f"    - CSV:  {c}")
+    print(f"    - JSON: {j}")
+
+
 def cmd_backfill_tips(limit: int = 50):
     print(f"=== Backfilling TheDogs Expert Tips (Limit: {limit}) ===")
     from backfill_tips import run_backfill
@@ -443,6 +484,18 @@ def main():
     backfill_tips_parser = subparsers.add_parser("backfill-tips", help="Backfill TheDogs expert tips for races in the database")
     backfill_tips_parser.add_argument("--limit", type=int, default=50, help="Maximum number of races to backfill")
 
+    wf_parser = subparsers.add_parser("walk-forward", help="Walk-forward out-of-sample evaluation vs de-vigged market benchmark")
+    wf_parser.add_argument("--min-history", type=int, default=2, help="Minimum days of historical data before starting evaluation")
+    wf_parser.add_argument("--max-days", type=int, default=None, help="Maximum number of test days to evaluate")
+
+    import_parser = subparsers.add_parser("import-history", help="Import months of historical race results from CSV or JSON file/directory")
+    import_parser.add_argument("path", type=str, help="Path to .csv, .json file or directory of data files")
+    import_parser.add_argument("--no-calibrate", action="store_true", help="Skip automatic post-import track recalibration")
+
+    template_parser = subparsers.add_parser("generate-template", help="Generate sample CSV and JSON historical data templates")
+    template_parser.add_argument("--csv", type=str, default="sample_race_history.csv", help="Output path for sample CSV")
+    template_parser.add_argument("--json", type=str, default="sample_race_history.json", help="Output path for sample JSON")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -483,6 +536,12 @@ def main():
         cmd_auto_tune(args.min_races)
     elif args.command == "backfill-tips":
         cmd_backfill_tips(args.limit)
+    elif args.command == "walk-forward":
+        cmd_walk_forward(args.min_history, args.max_days)
+    elif args.command == "import-history":
+        cmd_import_history(args.path, args.no_calibrate)
+    elif args.command == "generate-template":
+        cmd_generate_template(args.csv, args.json)
     else:
         parser.print_help()
 

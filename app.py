@@ -752,7 +752,10 @@ def _task_collect_live_odds():
             meeting_url = f"https://www.thedogs.com.au/racing/{track}/{date_str}"
             r_resp = poller.client.get(meeting_url)
             if r_resp.status_code == 200:
-                soup = BeautifulSoup(r_resp.text, "lxml")
+                try:
+                    soup = BeautifulSoup(r_resp.text, "lxml")
+                except Exception:
+                    soup = BeautifulSoup(r_resp.text, "html.parser")
                 pattern = f"/racing/{track}/{date_str}/{r_num}/"
                 match_a = soup.find("a", href=re.compile(pattern))
                 if match_a:
@@ -845,6 +848,37 @@ def trigger_fetch_weather(background_tasks: BackgroundTasks):
     return {"status": "started", "message": "Fetching live track weather observations"}
 
 
+@app.post("/api/actions/import-history")
+def api_import_history(payload: Dict[str, Any]):
+    """
+    Imports historical race records via JSON payload or from a local file/directory path.
+    """
+    from history_importer import HistoryImporter
+    importer = HistoryImporter()
+
+    file_path = payload.get("file_path")
+    records = payload.get("records")
+
+    if file_path:
+        p = Path(file_path)
+        if p.is_dir():
+            return importer.import_directory(str(p))
+        return importer.import_file(str(p))
+    elif records and isinstance(records, list):
+        return importer.import_records(records)
+    else:
+        raise HTTPException(status_code=400, detail="Provide 'file_path' or 'records' in request body")
+
+
+@app.get("/api/actions/import-template")
+def api_get_import_template(format: str = "csv"):
+    from history_importer import HistoryImporter
+    c, j = HistoryImporter.generate_template()
+    if format.lower() == "json":
+        return FileResponse(j, media_type="application/json", filename="sample_race_history.json")
+    return FileResponse(c, media_type="text/csv", filename="sample_race_history.csv")
+
+
 # --- Daemon Management Endpoints ---
 @app.get("/api/daemon/status")
 def get_daemon_status():
@@ -908,7 +942,8 @@ def run_backtest_optimize():
 @app.get("/api/learning/audit")
 def run_daily_learning_audit(
     date: Optional[str] = None,
-    scrape_missing: bool = False
+    scrape_missing: bool = False,
+    current_only: bool = False
 ):
     from daily_learning_engine import DailyLearningEngine
     import datetime
@@ -916,19 +951,21 @@ def run_daily_learning_audit(
     engine = DailyLearningEngine()
     if scrape_missing:
         engine.scrape_missing_results(target_date)
-    return engine.run_daily_audit(target_date)
+    return engine.run_daily_audit(target_date, current_only=current_only)
 
 @app.get("/api/reports/first4-audit")
 def get_first4_audit_report(
     date: Optional[str] = None,
     track: Optional[str] = None,
-    distance: Optional[int] = None
+    distance: Optional[int] = None,
+    current_only: Optional[bool] = False
 ):
     from first4_audit_report import generate_first4_audit
     return generate_first4_audit(
         date_str=date,
         track_filter=track,
-        distance_filter=distance
+        distance_filter=distance,
+        current_only=current_only
     )
 
 @app.get("/api/export/predictions")

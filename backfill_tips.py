@@ -22,7 +22,10 @@ def run_backfill(limit=50):
         url = r["race_url"]
         try:
             resp = scraper.client.get(url)
-            soup = BeautifulSoup(resp.text, "lxml")
+            try:
+                soup = BeautifulSoup(resp.text, "lxml")
+            except Exception:
+                soup = BeautifulSoup(resp.text, "html.parser")
             tips_div = soup.find(class_=re.compile(r"race-runners__tips|tabs-content__tips"))
             tips = []
             if tips_div:

@@ -25,7 +25,10 @@ class FastTrackScraper:
         try:
             r = self.client.get(self.BASE_URL)
             r.raise_for_status()
-            soup = BeautifulSoup(r.text, "lxml")
+            try:
+                soup = BeautifulSoup(r.text, "lxml")
+            except Exception:
+                soup = BeautifulSoup(r.text, "html.parser")
             links = []
             for a in soup.find_all("a", href=True):
                 href = a["href"]
@@ -47,15 +50,50 @@ class FastTrackScraper:
             print(f"[FastTrack] Failed to fetch {meeting_url}: {e}")
             return None
 
-        soup = BeautifulSoup(resp.text, "lxml")
-        header_el = soup.find("h2") or soup.find("h1")
-        meeting_title = header_el.get_text(strip=True) if header_el else "Unknown Meeting"
+        try:
+            soup = BeautifulSoup(resp.text, "lxml")
+        except Exception:
+            soup = BeautifulSoup(resp.text, "html.parser")
+        # Robust track and date extraction: search headings for valid date format
+        title_candidates = [el.get_text(" ", strip=True) for el in soup.find_all(["h1", "h2", "h3", "title"])]
+        track_name = ""
+        meeting_date = ""
 
-        # Meeting date and track parse
-        # e.g. "Sandown Park 08/10/2026"
-        parts = meeting_title.split(" ")
-        track_name = " ".join(parts[:-1]) if len(parts) > 1 else meeting_title
-        meeting_date = parts[-1] if len(parts) > 1 else ""
+        date_pattern = re.compile(r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})\b')
+        for text in title_candidates:
+            if "Form Guides" in text or text.strip().endswith("Guides:"):
+                continue
+            date_match = date_pattern.search(text)
+            if date_match:
+                raw_date = date_match.group(1)
+                try:
+                    parts = re.split(r'[/-]', raw_date)
+                    if len(parts) == 3:
+                        if len(parts[0]) == 4:  # YYYY-MM-DD
+                            meeting_date = f"{parts[0]}-{int(parts[1]):02d}-{int(parts[2]):02d}"
+                        else:  # DD/MM/YYYY
+                            meeting_date = f"{parts[2]}-{int(parts[1]):02d}-{int(parts[0]):02d}"
+                except Exception:
+                    meeting_date = raw_date
+                
+                track_part = text[:date_match.start()].strip()
+                if track_part:
+                    track_name = re.sub(r'^(FastTrack\s*-\s*|Meeting\s*:\s*)', '', track_part, flags=re.I).strip()
+                break
+
+        if not meeting_date or not track_name or "Guides" in meeting_date:
+            header_el = soup.find("h2") or soup.find("h1")
+            meeting_title = header_el.get_text(strip=True) if header_el else ""
+            if "Guides" in meeting_title:
+                print(f"[FastTrack] Skipping invalid meeting title '{meeting_title}' for {meeting_url}")
+                return None
+            parts = meeting_title.split(" ")
+            if len(parts) > 1 and re.match(r'^\d{4}-\d{2}-\d{2}$', parts[-1]):
+                track_name = " ".join(parts[:-1]).strip()
+                meeting_date = parts[-1].strip()
+            else:
+                print(f"[FastTrack] Could not extract valid meeting date from '{meeting_title}' for {meeting_url}")
+                return None
 
         # Extract meeting ID from URL
         match_id = re.search(r'/ViewRaces/([-\d]+)', meeting_url)

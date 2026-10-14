@@ -10,10 +10,12 @@ ENV TZ=Australia/Sydney
 # Set work directory inside the container
 WORKDIR /app
 
-# Install necessary system build tools (required for numpy/scipy wheels if needed)
+# Install necessary system build tools (required for numpy/scipy/lxml wheels if needed)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
+    libxml2-dev \
+    libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies

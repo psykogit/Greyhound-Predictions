@@ -321,6 +321,13 @@ class SportsbetScraper:
                                 is_scratched = ?
                             WHERE id = ?
                             """, (win_p, place_p, scratched, matched_rr_id))
+                            try:
+                                c.execute("""
+                                INSERT INTO odds_snapshots (race_id, runner_id, box_number, bookmaker, win_odds, place_odds)
+                                VALUES (?, ?, ?, 'sportsbet', ?, ?)
+                                """, (target_race_id, matched_rr_id, box_num, win_p, place_p))
+                            except Exception:
+                                pass
                             total_runners_updated += 1
                         elif scratched:
                             c.execute("UPDATE race_runners SET is_scratched = 1, sportsbet_odds = NULL, sportsbet_place_odds = NULL WHERE id = ?", (matched_rr_id,))

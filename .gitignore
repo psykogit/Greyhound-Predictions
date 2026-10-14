@@ -30,9 +30,12 @@ htmlcov/
 # ====================================================================
 # Databases & SQLite Runtime Locks
 # ====================================================================
+*.db
 *.db-journal
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
 *.sqlite3-journal
 *.sqlite3-shm
 *.sqlite3-wal
@@ -64,3 +67,11 @@ Desktop.ini
 sportsbet_dump.json
 temp*.py
 patch*.py
+check_*.py
+eval_*.py
+fix_*.py
+test_cas*.py
+test_war*.py
+test_shep*.py
+test_srm*.py
+test_phase*.py

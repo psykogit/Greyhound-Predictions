@@ -183,7 +183,10 @@ class ScratchingsManager:
             print(f"[ScratchingsManager] Request error: {e}")
             return {"status": "error", "error": str(e), "scratched_marked": 0, "reserves_reallocated": 0}
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        try:
+            soup = BeautifulSoup(resp.text, "lxml")
+        except Exception:
+            soup = BeautifulSoup(resp.text, "html.parser")
         conn = get_connection()
         cursor = conn.cursor()
 

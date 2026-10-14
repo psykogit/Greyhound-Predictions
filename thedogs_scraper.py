@@ -33,7 +33,10 @@ class TheDogsScraper:
         try:
             resp = self.client.get(f"{self.BASE_URL}/racing")
             resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "lxml")
+            try:
+                soup = BeautifulSoup(resp.text, "lxml")
+            except Exception:
+                soup = BeautifulSoup(resp.text, "html.parser")
             links = []
             for a in soup.find_all("a", href=True):
                 href = a["href"]
@@ -56,7 +59,10 @@ class TheDogsScraper:
             print(f"[TheDogs] Failed to fetch race at {race_url}: {e}")
             return None
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        try:
+            soup = BeautifulSoup(resp.text, "lxml")
+        except Exception:
+            soup = BeautifulSoup(resp.text, "html.parser")
         
         match = re.search(r"/racing/([a-z0-9\-]+)/(\d{4}-\d{2}-\d{2})/(\d+)", race_url)
         if not match:
@@ -159,9 +165,9 @@ class TheDogsScraper:
             wgt_el = row.find("td", class_="race-runners__weight")
             wgt = float(wgt_el.get_text(strip=True)) if wgt_el and wgt_el.get_text(strip=True) else None
 
-            # Sectionals (if completed race)
+            # Sectionals: distinguish pre-race card speedmap split from in-race actual split
             secs = [s.get_text(strip=True) for s in row.find_all("td", class_="race-runners__sectional")]
-            split_1 = float(secs[0]) if len(secs) > 0 and secs[0] else avg_sec1
+            actual_split_1 = float(secs[0]) if len(secs) > 0 and secs[0] else None
             split_2 = float(secs[1]) if len(secs) > 1 and secs[1] else None
 
             # Race time
@@ -197,7 +203,8 @@ class TheDogsScraper:
                 "form_string": form_string,
                 "finish_position": pos_num,
                 "weight": wgt,
-                "split_1": split_1,
+                "card_split_1": avg_sec1,
+                "split_1": actual_split_1,
                 "split_2": split_2,
                 "race_time": race_time,
                 "best_time": extracted_best_time,
@@ -287,8 +294,8 @@ class TheDogsScraper:
             cursor.execute("""
             INSERT INTO race_runners (
                 race_id, dog_id, trainer_id, box_number, weight, running_style,
-                form_string, finish_position, race_time, split_1, split_2, sp_odds, is_scratched, best_time, into_box
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                form_string, finish_position, race_time, split_1, split_2, sp_odds, is_scratched, best_time, into_box, card_split_1
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(race_id, box_number) DO UPDATE SET
                 dog_id=excluded.dog_id,
                 trainer_id=excluded.trainer_id,
@@ -302,7 +309,8 @@ class TheDogsScraper:
                 sp_odds=COALESCE(excluded.sp_odds, race_runners.sp_odds),
                 is_scratched=COALESCE(excluded.is_scratched, race_runners.is_scratched),
                 best_time=COALESCE(excluded.best_time, race_runners.best_time),
-                into_box=COALESCE(excluded.into_box, race_runners.into_box)
+                into_box=COALESCE(excluded.into_box, race_runners.into_box),
+                card_split_1=COALESCE(excluded.card_split_1, race_runners.card_split_1)
             """, (
                 race_id,
                 dog_id,
@@ -318,8 +326,19 @@ class TheDogsScraper:
                 r["sp_odds"],
                 r.get("is_scratched", 0),
                 r.get("best_time"),
-                r.get("into_box")
+                r.get("into_box"),
+                r.get("card_split_1")
             ))
+
+            # Record point-in-time odds snapshot if SP odds present
+            if r.get("sp_odds") and r["sp_odds"] > 1.0:
+                try:
+                    cursor.execute("""
+                    INSERT INTO odds_snapshots (race_id, box_number, bookmaker, win_odds)
+                    VALUES (?, ?, 'sp', ?)
+                    """, (race_id, r["box_number"], r["sp_odds"]))
+                except Exception:
+                    pass
 
         conn.commit()
         conn.close()

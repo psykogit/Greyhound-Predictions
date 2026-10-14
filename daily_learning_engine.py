@@ -97,7 +97,7 @@ class DailyLearningEngine:
             print(f"[Learning Engine] Successfully updated results for {updated_count} races on {target_date}.")
         return updated_count
 
-    def run_daily_audit(self, target_date: str) -> Dict[str, Any]:
+    def run_daily_audit(self, target_date: str, current_only: bool = False) -> Dict[str, Any]:
         """Runs full audit of model predictions against actual results for target_date."""
         self.conn.row_factory = sqlite3.Row
         c = self.conn.cursor()
@@ -245,6 +245,87 @@ class DailyLearningEngine:
             n = st["races"]
             print(f"{d:<10}: {n} races | Top-1 Win: {st['top1']/n*100:.1f}% | Top-2 Win: {st['top2']/n*100:.1f}% | Top-3 Win: {st['top3']/n*100:.1f}%")
 
+        # Query meeting totals and remaining races for target_date and today
+        today_str = datetime.date.today().isoformat()
+        c.execute("""
+        SELECT m.track_name,
+               COUNT(r.id) as total_races,
+               SUM(CASE WHEN EXISTS (
+                   SELECT 1 FROM race_runners rr
+                   WHERE rr.race_id = r.id AND rr.finish_position = 1
+               ) THEN 1 ELSE 0 END) as completed_races
+        FROM meetings m
+        JOIN races r ON r.meeting_id = m.id
+        WHERE m.meeting_date = ?
+        GROUP BY m.track_name
+        """, (target_date,))
+        date_track_meetings = {}
+        for row in c.fetchall():
+            tot = row["total_races"] or 0
+            comp = row["completed_races"] or 0
+            rem = max(0, tot - comp)
+            date_track_meetings[row["track_name"]] = {
+                "total_races": tot,
+                "completed_races": comp,
+                "remaining_races": rem,
+            }
+
+        today_active_tracks = {}
+        if target_date != today_str:
+            c.execute("""
+            SELECT m.track_name,
+                   COUNT(r.id) as total_races,
+                   SUM(CASE WHEN EXISTS (
+                       SELECT 1 FROM race_runners rr
+                       WHERE rr.race_id = r.id AND rr.finish_position = 1
+                   ) THEN 1 ELSE 0 END) as completed_races
+            FROM meetings m
+            JOIN races r ON r.meeting_id = m.id
+            WHERE m.meeting_date = ?
+            GROUP BY m.track_name
+            """, (today_str,))
+            for row in c.fetchall():
+                tot = row["total_races"] or 0
+                comp = row["completed_races"] or 0
+                rem = max(0, tot - comp)
+                today_active_tracks[row["track_name"]] = {
+                    "total_races": tot,
+                    "completed_races": comp,
+                    "remaining_races": rem,
+                }
+
+        track_stats_list = []
+        for t, st in sorted(track_stats.items(), key=lambda x: x[1]["races"], reverse=True):
+            d_info = date_track_meetings.get(t, {})
+            tot = d_info.get("total_races", st["races"])
+            rem = d_info.get("remaining_races", 0)
+            if target_date == today_str:
+                is_curr = (rem > 0)
+                rem_today = rem
+            else:
+                t_today_info = today_active_tracks.get(t)
+                if t_today_info:
+                    rem_today = t_today_info.get("remaining_races", 0)
+                    is_curr = (rem_today > 0)
+                else:
+                    rem_today = 0
+                    is_curr = (rem > 0)
+
+            item = {
+                "track": t,
+                "races": st["races"],
+                "total_meeting_races": tot,
+                "remaining_races": rem_today if (target_date != today_str and t in today_active_tracks) else rem,
+                "is_current_location": is_curr,
+                "top1_win_rate": round(st["top1"] / st["races"] * 100, 1),
+                "top2_win_rate": round(st["top2"] / st["races"] * 100, 1),
+                "top3_win_rate": round(st["top3"] / st["races"] * 100, 1),
+                "pnl": round(st["roi_return"] - (st["races"] * flat_stake), 2)
+            }
+            track_stats_list.append(item)
+
+        filtered_track_stats = [t for t in track_stats_list if t["is_current_location"]] if current_only else track_stats_list
+
         return {
             "date": target_date,
             "total_races": total_races,
@@ -269,17 +350,11 @@ class DailyLearningEngine:
             "value_bets_won": value_bets_won,
             "value_returns": round(returns_value, 2),
             "value_roi": round((returns_value - (value_bets_count * flat_stake)) / (value_bets_count * flat_stake) * 100, 1) if value_bets_count else 0,
-            "track_stats": [
-                {
-                    "track": t,
-                    "races": st["races"],
-                    "top1_win_rate": round(st["top1"] / st["races"] * 100, 1),
-                    "top2_win_rate": round(st["top2"] / st["races"] * 100, 1),
-                    "top3_win_rate": round(st["top3"] / st["races"] * 100, 1),
-                    "pnl": round(st["roi_return"] - (st["races"] * flat_stake), 2)
-                }
-                for t, st in sorted(track_stats.items(), key=lambda x: x[1]["races"], reverse=True)
-            ],
+            "current_only": current_only,
+            "current_tracks_count": len([t for t in track_stats_list if t["is_current_location"]]),
+            "total_tracks_count": len(track_stats_list),
+            "track_stats": filtered_track_stats,
+            "all_track_stats": track_stats_list,
             "distance_stats": [
                 {
                     "distance": d,
