@@ -98,7 +98,7 @@ python app.py
 # or double-click start_server.bat
 ```
 
-Navigate to `http://127.0.0.1:8000` to access:
+Navigate to `http://127.0.0.1:8090` to access:
 * **Live "Next to Jump" Countdown & Race Feed** with AWST/AEDT timezone toggle.
 * **Sportsbet Live Odds & Value Edge Table** with direct dog dossier deep-dives.
 * **Autonomous Poller Daemon Widget** with real-time cycle status, pause/resume, and immediate sync.

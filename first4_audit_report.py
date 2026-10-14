@@ -83,7 +83,7 @@ def generate_first4_audit(
         query += " AND r.distance = ?"
         params.append(int(distance_filter))
 
-    query += " ORDER BY m.track_name ASC, r.distance ASC, r.race_number ASC"
+    query += " ORDER BY m.track_name ASC, r.race_number ASC, r.start_time ASC"
     c.execute(query, params)
     races = c.fetchall()
 

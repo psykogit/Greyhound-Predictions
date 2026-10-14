@@ -128,6 +128,9 @@
       <button onclick="switchTab('learning')" id="btn-quick-learning" class="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 border border-violet-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
         <i class="fa-solid fa-brain"></i><span>Daily Audit</span>
       </button>
+      <button onclick="switchTab('settings')" id="btn-quick-settings" class="px-3 py-1.5 bg-slate-700/40 hover:bg-slate-700/80 text-slate-300 border border-slate-600/50 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm" title="Application Settings">
+        <i class="fa-solid fa-gear text-slate-400"></i><span>Settings</span>
+      </button>
     </div>
   </header>
 
@@ -142,6 +145,11 @@
     </div>
     
     <div class="flex items-center space-x-3">
+      <div id="live-system-badge" class="flex items-center space-x-1.5 bg-emerald-950/40 border border-emerald-500/40 px-2.5 py-1 rounded-full text-[10px]">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block animate-pulse"></span>
+        <span class="text-accent-green font-bold">System Online</span>
+      </div>
+
       <div id="daemon-badge-container" class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
         <span id="daemon-pulse" class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block animate-pulse"></span>
         <span id="daemon-status-text" class="text-slate-300 font-mono">Daemon: Active (60s)</span>
@@ -167,39 +175,6 @@
 
   <!-- Main Grid -->
   <main class="flex-1 flex overflow-hidden">
-    
-    <!-- Sidebar -->
-    <aside class="w-48 bg-[#0D1520] border-r border-navy-500 flex flex-col shrink-0">
-      <nav class="flex-1 px-3 py-5 space-y-1.5">
-        <a href="#" onclick="switchTab('analysis')" id="side-nav-home" class="flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm">
-          <i class="fa-solid fa-house w-4 text-center"></i><span>Home</span>
-        </a>
-        <a href="#" onclick="switchTab('analysis'); document.getElementById('track-search-input').focus();" id="side-nav-cards" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
-          <i class="fa-regular fa-calendar-days w-4 text-center"></i><span>Race Cards</span>
-        </a>
-        <a href="#" onclick="switchTab('analysis')" id="side-nav-analysis" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
-          <i class="fa-solid fa-chart-column w-4 text-center"></i><span>Analytics</span>
-        </a>
-        <a href="#" onclick="switchTab('multis')" id="side-nav-multis" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
-          <i class="fa-solid fa-layer-group w-4 text-center"></i><span>Multi-Bet Optimizer</span>
-        </a>
-        <a href="#" onclick="switchTab('backtest')" id="side-nav-backtest" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm">
-          <i class="fa-regular fa-lightbulb w-4 text-center"></i><span>Strategies</span>
-        </a>
-        <a href="#" onclick="switchTab('settings');" id="side-nav-settings" class="flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm mt-4">
-          <i class="fa-solid fa-gear w-4 text-center"></i><span>Settings</span>
-        </a>
-      </nav>
-      <div class="p-4 border-t border-navy-500">
-        <div class="bg-accent-green/10 border border-accent-green/20 rounded-md px-3 py-2 flex flex-col items-start">
-          <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-accent-green"></span>
-            <span class="text-accent-green text-[11px] font-bold">System Online</span>
-          </div>
-          <span class="text-slate-500 text-[9px] mt-1">All modules running</span>
-        </div>
-      </div>
-    </aside>
     
     <!-- Race Cards Panel -->
     <section class="w-[330px] bg-[#0E1724] border-r border-navy-500 flex flex-col shrink-0">
@@ -246,7 +221,10 @@
           <i class="fa-solid fa-flask text-emerald-500/70"></i><span>Backtest & Strategy Lab</span>
         </button>
         <button onclick="switchTab('learning')" id="tab-nav-learning" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
-          <i class="fa-solid fa-book-open text-purple-500/70"></i><span>Daily Learning & Audit</span>
+          <i class="fa-solid fa-brain text-purple-500/70"></i><span>Daily Learning & Audit</span>
+        </button>
+        <button onclick="switchTab('settings')" id="tab-nav-settings" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+          <i class="fa-solid fa-gear text-slate-400"></i><span>Settings</span>
         </button>
       </div>
       
@@ -307,6 +285,23 @@
               <div class="text-[10px] text-slate-400 flex items-center space-x-1"><i class="fa-solid fa-fire text-amber-400"></i><span>Projected First 4 & Box 5 Exotic Injection</span></div>
             </div>
             <div id="top4-podium-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Cloned: Market Hype % Leaderboard (Public / Bookmaker Order) -->
+          <div id="hype-podium-card" class="hidden card p-5 border-navy-500 bg-gradient-to-br from-[#12141f] via-[#161427] to-[#121922]">
+            <div class="flex items-center justify-between border-b border-navy-500 pb-3 mb-4">
+              <h3 class="text-[11px] font-bold text-slate-200 tracking-wider uppercase flex items-center space-x-2">
+                <i class="fa-solid fa-fire-flame-curved text-pink-400"></i>
+                <span>Dog Order by Hype % (Market Implied Win Probability)</span>
+              </h3>
+              <div class="text-[10px] text-pink-400/90 flex items-center space-x-1.5">
+                <i class="fa-solid fa-bolt text-pink-400"></i>
+                <span>Public & Bookmaker Ranking (1 / Odds)</span>
+              </div>
+            </div>
+            <div id="hype-podium-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
               <!-- Rendered by JS -->
             </div>
           </div>
@@ -835,11 +830,26 @@
             <table class="w-full text-left text-xs border-collapse">
               <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
                 <tr>
-                  <th class="p-2.5">Race & Time</th>
-                  <th class="p-2.5 text-center">Dist / Grade</th>
+                  <th class="p-2.5 cursor-pointer hover:text-white transition select-none group" onclick="toggleAuditSort('race_time')" title="Click to sort by Race & Time">
+                    <div class="flex items-center space-x-1.5">
+                      <span class="group-hover:text-purple-300 transition">Race & Time</span>
+                      <i id="sort-icon-race_time" class="fa-solid fa-arrow-down-short-wide text-[11px] text-purple-400"></i>
+                    </div>
+                  </th>
+                  <th class="p-2.5 text-center cursor-pointer hover:text-white transition select-none group" onclick="toggleAuditSort('dist')" title="Click to sort by Distance">
+                    <div class="flex items-center justify-center space-x-1.5">
+                      <span class="group-hover:text-purple-300 transition">Dist / Grade</span>
+                      <i id="sort-icon-dist" class="fa-solid fa-sort text-[10px] text-slate-500"></i>
+                    </div>
+                  </th>
                   <th class="p-2.5">Predicted Selections</th>
                   <th class="p-2.5">Actual Official Top 4 (1st - 4th)</th>
-                  <th class="p-2.5 text-center">Overlap</th>
+                  <th class="p-2.5 text-center cursor-pointer hover:text-white transition select-none group" onclick="toggleAuditSort('overlap')" title="Click to sort by Overlap">
+                    <div class="flex items-center justify-center space-x-1.5">
+                      <span class="group-hover:text-purple-300 transition">Overlap</span>
+                      <i id="sort-icon-overlap" class="fa-solid fa-sort text-[10px] text-slate-500"></i>
+                    </div>
+                  </th>
                   <th class="p-2.5 text-right">Hit Badges</th>
                 </tr>
               </thead>
@@ -1788,6 +1798,93 @@ ${finishBadge}
           top4Grid.innerHTML = gridHtml;
         } else {
           top4Card.classList.add('hidden');
+        }
+
+        // Render Dog Order by Hype % (Market Implied Win Probability)
+        const hypeCard = document.getElementById('hype-podium-card');
+        const hypeGrid = document.getElementById('hype-podium-grid');
+        if (hypeCard && hypeGrid) {
+          if (data.predictions && data.predictions.length >= 2) {
+            // Collect runners with valid hype score, sort descending
+            const hypeRanked = data.predictions
+              .map(p => {
+                const h = getRunnerHype(p);
+                return { runner: p, hype: h };
+              })
+              .filter(item => item.hype !== null && !isNaN(item.hype) && item.hype > 0)
+              .sort((a, b) => b.hype - a.hype);
+
+            if (hypeRanked.length >= 2) {
+              hypeCard.classList.remove('hidden');
+              const hypePlaceLabels = [
+                { pos: '1st Hype', label: 'FAVORITE', badge: 'bg-gradient-to-r from-pink-500 to-rose-500 text-white font-black shadow', border: 'border-pink-500/80 ring-1 ring-pink-500/40' },
+                { pos: '2nd Hype', label: '2ND FAV', badge: 'bg-pink-600/30 text-pink-300 border border-pink-500/50 font-bold', border: 'border-pink-500/50' },
+                { pos: '3rd Hype', label: '3RD FAV', badge: 'bg-purple-600/30 text-purple-300 border border-purple-500/50 font-bold', border: 'border-purple-500/40' },
+                { pos: '4th Hype', label: '4TH FAV', badge: 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/50 font-bold', border: 'border-indigo-500/40' },
+                { pos: '5th Hype', label: '5TH FAV', badge: 'bg-slate-700/60 text-slate-300 border border-slate-600/50 font-bold', border: 'border-slate-700/60' }
+              ];
+
+              const hypeGridHtml = hypeRanked.slice(0, 5).map((item, idx) => {
+                const p = item.runner;
+                const hypeVal = item.hype;
+                const meta = hypePlaceLabels[idx] || { pos: `${idx+1}th Hype`, label: 'CONTENDER', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
+                const boxBadgeClass = `badge-box-${p.box || 1}`;
+                const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
+                
+                let finishBadge = '';
+                if (p.finish_position !== null && p.finish_position !== undefined) {
+                  const pos = p.finish_position;
+                  let rankStr = pos + (['st','nd','rd'][((pos+90)%100-10)%10-1]||'th');
+                  let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' : 
+                                pos === 2 ? 'bg-slate-300 text-black shadow' : 
+                                pos === 3 ? 'bg-amber-700 text-white shadow' : 
+                                'bg-navy-700 text-slate-400 border border-navy-500';
+                  finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
+                }
+
+                // Best odds display
+                const odds = p.sportsbet_odds || p.best_odds || p.market_odds || (p.fixed_market_price || p.the_dogs_odds);
+                const oddsStr = odds ? '$' + Number(odds).toFixed(2) : '$' + (100 / hypeVal).toFixed(2);
+
+                // Value Edge: Model Win Prob % - Hype %
+                const modelWinPct = (p.model_win_prob || 0) * 100;
+                const edge = modelWinPct - hypeVal;
+                let edgeHtml = '';
+                if (edge > 0.5) {
+                  edgeHtml = `<span class="text-emerald-400 font-extrabold" title="Positive Value Edge over Market (+EV)">+${edge.toFixed(1)}% Edge</span>`;
+                } else if (edge < -0.5) {
+                  edgeHtml = `<span class="text-rose-400/90 font-medium" title="Market Overhyped relative to Model">${edge.toFixed(1)}%</span>`;
+                } else {
+                  edgeHtml = `<span class="text-slate-400 font-mono">${edge.toFixed(1)}%</span>`;
+                }
+
+                return `
+                  <div class="bg-navy-600/90 p-3 rounded-lg border ${meta.border} flex flex-col justify-between shadow transition hover:border-pink-400/80">
+                    <div class="flex items-center justify-between mb-1.5">
+                      <span class="text-[10px] px-1.5 py-0.5 rounded ${meta.badge}">${meta.pos}</span>
+                      <span class="font-mono text-cyan-300 font-bold text-xs bg-navy-800/90 px-1.5 py-0.5 rounded border border-navy-600">${oddsStr}</span>
+                    </div>
+                    <div class="flex items-center space-x-2 my-1">
+                      <span class="inline-block w-10 h-10 flex items-center justify-center font-extrabold text-xl rounded-md shadow-md ${boxBadgeClass}">${p.box || '?'}</span>
+                      <button onclick="openDogDossier(this.dataset.id, this.dataset.name)" data-id="${p.dog_id || 0}" data-name="${safeDogName}" class="font-bold text-white text-xs truncate hover:text-pink-300 text-left transition cursor-pointer underline decoration-dotted decoration-gray-600">${p.dog_name}</button>
+                      ${finishBadge}
+                    </div>
+                    <div class="mt-1 flex items-center justify-between text-[10px] text-slate-300 font-mono border-t border-navy-500 pt-1">
+                      <span class="text-pink-400 font-bold">Hype: ${hypeVal.toFixed(1)}%</span>
+                      <span class="text-slate-400">Model: ${modelWinPct.toFixed(1)}%</span>
+                      <span>${edgeHtml}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+
+              hypeGrid.innerHTML = hypeGridHtml;
+            } else {
+              hypeCard.classList.add('hidden');
+            }
+          } else {
+            hypeCard.classList.add('hidden');
+          }
         }
 
         // Render Exotic Odds & Staking Matrix (4-Dog Boxed Trifecta & 5-Dog Boxed First 4)
@@ -2896,6 +2993,8 @@ ${finishBadge}
     // Global audit state & tier filtering
     let lastAuditRacesData = [];
     let currentAuditTierFilter = 'all';
+    let auditSortCol = 'race_time';
+    let auditSortDir = 'asc';
 
     function setAuditTierFilter(tier) {
       currentAuditTierFilter = tier;
@@ -2913,6 +3012,33 @@ ${finishBadge}
       renderFirst4RacesTable();
     }
 
+    function toggleAuditSort(col) {
+      if (auditSortCol === col) {
+        auditSortDir = (auditSortDir === 'asc') ? 'desc' : 'asc';
+      } else {
+        auditSortCol = col;
+        auditSortDir = 'asc';
+      }
+      updateAuditSortIcons();
+      renderFirst4RacesTable();
+    }
+
+    function updateAuditSortIcons() {
+      const cols = ['race_time', 'dist', 'overlap'];
+      cols.forEach(c => {
+        const el = document.getElementById(`sort-icon-${c}`);
+        if (el) {
+          if (auditSortCol === c) {
+            el.className = (auditSortDir === 'asc') 
+              ? 'fa-solid fa-arrow-down-short-wide text-[11px] text-purple-400' 
+              : 'fa-solid fa-arrow-up-wide-short text-[11px] text-purple-400';
+          } else {
+            el.className = 'fa-solid fa-sort text-[10px] text-slate-500';
+          }
+        }
+      });
+    }
+
     function renderFirst4RacesTable() {
       const racesTbody = document.getElementById('first4-races-tbody');
       const racesCountEl = document.getElementById('first4-races-count');
@@ -2928,6 +3054,37 @@ ${finishBadge}
       } else if (currentAuditTierFilter === 'standout') {
         filtered = lastAuditRacesData.filter(r => r.key_standout_hit);
       }
+
+      // Default sort by race & time (or active column)
+      filtered = [...filtered].sort((a, b) => {
+        let cmp = 0;
+        if (auditSortCol === 'race_time') {
+          const trackA = (a.track || '').toLowerCase();
+          const trackB = (b.track || '').toLowerCase();
+          if (trackA !== trackB) {
+            cmp = trackA.localeCompare(trackB);
+          } else {
+            const numA = Number(a.race_number) || 0;
+            const numB = Number(b.race_number) || 0;
+            if (numA !== numB) {
+              cmp = numA - numB;
+            } else {
+              const timeA = a.start_time || '';
+              const timeB = b.start_time || '';
+              cmp = timeA.localeCompare(timeB);
+            }
+          }
+        } else if (auditSortCol === 'dist') {
+          const distA = Number(a.distance) || 0;
+          const distB = Number(b.distance) || 0;
+          cmp = (distA !== distB) ? (distA - distB) : ((Number(a.race_number) || 0) - (Number(b.race_number) || 0));
+        } else if (auditSortCol === 'overlap') {
+          const oA = Number(a.overlap_count) || 0;
+          const oB = Number(b.overlap_count) || 0;
+          cmp = (oA !== oB) ? (oA - oB) : ((Number(a.race_number) || 0) - (Number(b.race_number) || 0));
+        }
+        return auditSortDir === 'asc' ? cmp : -cmp;
+      });
 
       if (racesCountEl) {
         const total = lastAuditRacesData.length;
@@ -3023,49 +3180,34 @@ ${finishBadge}
       document.getElementById('view-multis').classList.add('hidden');
       document.getElementById('view-backtest').classList.add('hidden');
       document.getElementById('view-learning').classList.add('hidden');
-  const vSet = document.getElementById('view-settings'); if(vSet) vSet.classList.add('hidden');
+      const vSet = document.getElementById('view-settings');
+      if (vSet) vSet.classList.add('hidden');
 
-      document.getElementById('tab-nav-analysis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
-      document.getElementById('tab-nav-multis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
-      document.getElementById('tab-nav-backtest').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
-      document.getElementById('tab-nav-learning').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2';
-    
-    // reset sidebar
-    const sideLinks = ['home', 'cards', 'analysis', 'multis', 'backtest', 'settings'];
-    sideLinks.forEach(id => {
-      const el = document.getElementById('side-nav-' + id);
-      if (el) el.className = 'flex items-center space-x-3 px-3 py-2 rounded-md text-slate-400 hover:bg-navy-600 hover:text-slate-200 transition text-sm';
-    });
-
+      document.getElementById('tab-nav-analysis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
+      document.getElementById('tab-nav-multis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
+      document.getElementById('tab-nav-backtest').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
+      document.getElementById('tab-nav-learning').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
+      const tSet = document.getElementById('tab-nav-settings');
+      if (tSet) tSet.className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
 
       if (tab === 'analysis') {
         document.getElementById('view-analysis').classList.remove('hidden');
-        document.getElementById('tab-nav-analysis').className = 'pb-3 active-tab flex items-center space-x-2';
-    const s_analysis = document.getElementById('side-nav-analysis');
-    if (s_analysis) s_analysis.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
-
+        document.getElementById('tab-nav-analysis').className = 'pb-3 active-tab flex items-center space-x-2 transition';
       } else if (tab === 'multis') {
         document.getElementById('view-multis').classList.remove('hidden');
-        document.getElementById('tab-nav-multis').className = 'pb-3 active-tab flex items-center space-x-2';
-    const s_multis = document.getElementById('side-nav-multis');
-    if (s_multis) s_multis.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
-
+        document.getElementById('tab-nav-multis').className = 'pb-3 active-tab flex items-center space-x-2 transition';
         srmModeActive = true;
         fetchMultis();
       } else if (tab === 'backtest') {
         document.getElementById('view-backtest').classList.remove('hidden');
-        document.getElementById('tab-nav-backtest').className = 'pb-3 active-tab flex items-center space-x-2';
-    const s_backtest = document.getElementById('side-nav-backtest');
-    if (s_backtest) s_backtest.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
-
+        document.getElementById('tab-nav-backtest').className = 'pb-3 active-tab flex items-center space-x-2 transition';
         runBacktest();
       } else if (tab === 'settings') {
-    const vSet = document.getElementById('view-settings'); if(vSet) vSet.classList.remove('hidden');
-    const s_set = document.getElementById('side-nav-settings');
-    if (s_set) s_set.className = 'flex items-center space-x-3 px-3 py-2 rounded-md bg-accent-teal/10 text-accent-teal font-medium text-sm';
-  } else if (tab === 'learning') {
+        if (vSet) vSet.classList.remove('hidden');
+        if (tSet) tSet.className = 'pb-3 active-tab flex items-center space-x-2 transition';
+      } else if (tab === 'learning') {
         document.getElementById('view-learning').classList.remove('hidden');
-        document.getElementById('tab-nav-learning').className = 'pb-3 active-tab flex items-center space-x-2';
+        document.getElementById('tab-nav-learning').className = 'pb-3 active-tab flex items-center space-x-2 transition';
         runLearningAudit();
       }
     }
