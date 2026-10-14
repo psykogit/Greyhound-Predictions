@@ -23,6 +23,32 @@ class TrackCalibrationEngine:
     ALPHA_PRIOR = 16.0  # Bayesian prior credibility weight
     FIELD_BOX_PRIOR = 0.125  # 1/8 baseline expectation for 8-box fields
 
+    TRACK_CODE_MAP = {
+        "CANNINGTON": ["CANN", "CAN"],
+        "MANDURAH": ["MAND"],
+        "ANGLE PARK": ["AP/K"],
+        "SANDOWN": ["SAN", "SAND"],
+        "THE MEADOWS": ["MEA", "MEAD"],
+        "MEADOWS": ["MEA", "MEAD"],
+        "WENTWORTH PARK": ["W/PK", "WP"],
+        "ALBION PARK": ["ALB", "ALP"],
+        "HEALESVILLE": ["HEA"],
+        "CAPALABA": ["CAPA", "CAP"],
+        "SALE": ["SALE"],
+        "BENDIGO": ["BEN"],
+        "BALLARAT": ["BAL"],
+        "GEELONG": ["GEE"],
+        "SHEPPARTON": ["SHE"],
+        "WARRAGUL": ["WAR"],
+        "WARRNAMBOOL": ["WBL"],
+        "HORSHAM": ["HOR"],
+        "DUBBO": ["DUBO", "DUB"],
+        "GRAFTON": ["GRAF"],
+        "RICHMOND": ["RICH"],
+        "TOWNSVILLE": ["TVLE"],
+        "ROCKHAMPTON": ["ROCK"],
+    }
+
     def __init__(self, db_path: str = "greyhound_racing.db"):
         self.db_path = db_path
         self._init_tables()
@@ -182,6 +208,43 @@ class TrackCalibrationEngine:
                     if rid not in race_splits:
                         race_splits[rid] = []
                     race_splits[rid].append((sp1, pos))
+
+            # Augment with historical sectional past_performances where available
+            codes = self.TRACK_CODE_MAP.get(track_name.upper())
+            if codes:
+                try:
+                    placeholders = ",".join("?" for _ in codes)
+                    pp_dist_filter = {
+                        "sprint": "distance <= 465",
+                        "middle": "distance > 465 AND distance <= 580",
+                        "staying": "distance > 580"
+                    }.get(distance_band, "distance <= 465")
+                    c.execute(f"""
+                        SELECT box, finish_pos, split_1, race_time
+                        FROM past_performances
+                        WHERE track_code IN ({placeholders})
+                          AND {pp_dist_filter}
+                          AND box BETWEEN 1 AND 8
+                          AND finish_pos IS NOT NULL
+                    """, codes)
+                    pp_rows = c.fetchall()
+                    for pp in pp_rows:
+                        b = pp["box"]
+                        f_pos = str(pp["finish_pos"]).strip()
+                        is_win = f_pos.startswith("1st") or f_pos == "1"
+                        is_place = any(f_pos.startswith(x) for x in ("1st", "2nd", "3rd")) or f_pos in ("1", "2", "3")
+                        tm = pp["race_time"]
+                        
+                        box_tally[b]["starts"] += 1
+                        total_starts += 1
+                        if is_win:
+                            box_tally[b]["wins"] += 1
+                            if tm and tm > 5.0:
+                                race_times.append(tm)
+                        if is_place:
+                            box_tally[b]["places"] += 1
+                except Exception as ex:
+                    pass
 
             # Bayesian shrinkage for box multipliers
             box_multipliers = {}
