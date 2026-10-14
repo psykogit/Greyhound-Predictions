@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Greyhound Precision Multi-Betting Engine</title>
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0A1118" id="meta-theme-color">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Greyhound Precision Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -29,235 +35,907 @@
     }
   </script>
   <style>
-    body { background-color: #0A1118; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #1E2A3C; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #334155; }
-    
-    .card { background-color: #1A2634; border: 1px solid #1E2A3C; border-radius: 6px; }
-    
-    /* Box Colors */
-
-    [class*="badge-box-"] {
-      text-shadow: 
-        -2px -2px 0 #000,  
-         0   -2px 0 #000,
-         2px -2px 0 #000,
-         2px  0   0 #000,
-         2px  2px 0 #000,
-         0    2px 0 #000,
-        -2px  2px 0 #000,
-        -2px  0   0 #000 !important;
-      box-shadow: inset 0 2px 4px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.5);
+    body {
+      background-color: #0A1118;
+      color: #E2E8F0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .badge-box-1 { background-color: #dc2626; color: #ffffff; border: 1px solid #991b1b; font-weight: 700; text-align: center;} 
-    .badge-box-2 { 
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1E2A3C;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .card {
+      background-color: #1A2634;
+      border: 1px solid #1E2A3C;
+      border-radius: 6px;
+    }
+
+    /* Box Colors */
+    [class*="badge-box-"] {
+      text-shadow:
+        -2px -2px 0 #000,
+        0 -2px 0 #000,
+        2px -2px 0 #000,
+        2px 0 0 #000,
+        2px 2px 0 #000,
+        0 2px 0 #000,
+        -2px 2px 0 #000,
+        -2px 0 0 #000 !important;
+      box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 4px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    .badge-box-1 {
+      background-color: #dc2626;
+      color: #ffffff !important;
+      border: 1px solid #991b1b;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .badge-box-2 {
       background-color: #000000;
-      background-image: 
-        linear-gradient(45deg, #ffffff 25%, transparent 25%), 
-        linear-gradient(-45deg, #ffffff 25%, transparent 25%), 
-        linear-gradient(45deg, transparent 75%, #ffffff 75%), 
+      background-image:
+        linear-gradient(45deg, #ffffff 25%, transparent 25%),
+        linear-gradient(-45deg, #ffffff 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ffffff 75%),
         linear-gradient(-45deg, transparent 75%, #ffffff 75%);
       background-size: 16px 16px;
       background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-      color: #ffffff;
+      color: #ffffff !important;
       border: 1px solid #ffffff;
       text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
       font-weight: 900;
       text-align: center;
-    } 
-    .badge-box-3 { background-color: #ffffff; color: #ffffff; border: 1px solid #94A3B8; font-weight: 800; text-align: center;} 
-    .badge-box-4 { background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-weight: 700; text-align: center;} 
-    .badge-box-5 { background-color: #facc15; color: #ffffff; border: 1px solid #ca8a04; font-weight: 800; text-align: center;} 
-    .badge-box-6 { background-color: #16a34a; color: #ffffff; border: 1px solid #15803d; font-weight: 700; text-align: center;} 
-    .badge-box-7 { background-color: #09090b; color: #ffffff; border: 1px solid #3f3f46; font-weight: 700; text-align: center;} 
-    .badge-box-8 { background-color: #f43f5e; color: #ffffff; border: 1px solid #be123c; font-weight: 700; text-align: center;} 
-    .badge-box-9 { background: repeating-linear-gradient(45deg, #16a34a, #16a34a 4px, #ffffff 4px, #ffffff 8px); color: #ffffff; border: 1px solid #15803d; font-weight: 800; text-align: center;} 
-    .badge-box-10 { background: repeating-linear-gradient(45deg, #9333ea, #9333ea 4px, #ffffff 4px, #ffffff 8px); color: #ffffff; border: 1px solid #7e22ce; font-weight: 800; text-align: center;} 
-    
-    .active-tab { border-bottom: 2px solid #06B6D4; color: #06B6D4; font-weight: 600; }
-    
-    table { width: 100%; text-align: left; border-collapse: collapse; }
-    th { font-size: 11px; text-transform: uppercase; color: #94A3B8; font-weight: 600; padding: 10px 12px; border-bottom: 1px solid #1E2A3C; }
-    td { padding: 10px 12px; border-bottom: 1px solid #1E2A3C; font-size: 12px; font-variant-numeric: tabular-nums; }
-    tr:hover td { background-color: rgba(255, 255, 255, 0.02); }
-    
-    .glass-btn { background: rgba(30, 42, 60, 0.6); border: 1px solid #1E2A3C; color: #E2E8F0; }
-    .glass-btn:hover { background: rgba(30, 42, 60, 1); border-color: #334155; }
+    }
+
+    .badge-box-3 {
+      background-color: #ffffff;
+      color: #ffffff !important;
+      border: 1px solid #94A3B8;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .badge-box-4 {
+      background-color: #2563eb;
+      color: #ffffff !important;
+      border: 1px solid #1d4ed8;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .badge-box-5 {
+      background-color: #facc15;
+      color: #ffffff !important;
+      border: 1px solid #ca8a04;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .badge-box-6 {
+      background-color: #16a34a;
+      color: #ffffff !important;
+      border: 1px solid #15803d;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .badge-box-7 {
+      background-color: #09090b;
+      color: #ffffff !important;
+      border: 1px solid #3f3f46;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .badge-box-8 {
+      background-color: #f43f5e;
+      color: #ffffff !important;
+      border: 1px solid #be123c;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .badge-box-9 {
+      background: repeating-linear-gradient(45deg, #16a34a, #16a34a 4px, #ffffff 4px, #ffffff 8px);
+      color: #ffffff !important;
+      border: 1px solid #15803d;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .badge-box-10 {
+      background: repeating-linear-gradient(45deg, #9333ea, #9333ea 4px, #ffffff 4px, #ffffff 8px);
+      color: #ffffff !important;
+      border: 1px solid #7e22ce;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .active-tab {
+      border-bottom: 2px solid #06B6D4;
+      color: #06B6D4 !important;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      text-align: left;
+      border-collapse: collapse;
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #94A3B8;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-bottom: 1px solid #1E2A3C;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1E2A3C;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    tr:hover td {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .glass-btn {
+      background: rgba(30, 42, 60, 0.6);
+      border: 1px solid #1E2A3C;
+      color: #E2E8F0;
+    }
+
+    .glass-btn:hover {
+      background: rgba(30, 42, 60, 1);
+      border-color: #334155;
+    }
+
+    /* Touch & Mobile Optimizations */
+    .touch-scroll {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .safe-area-bottom {
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+
+    /* ==========================================================================
+       LIGHT THEME STYLES - COMPREHENSIVE OVERRIDES
+       ========================================================================== */
+    body.light-theme {
+      background-color: #F8FAFC !important;
+      color: #1E293B !important;
+    }
+
+    body.light-theme ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+
+    body.light-theme ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+
+    /* Cards, Panels & Structural Containers */
+    body.light-theme .card,
+    body.light-theme #race-cards-panel,
+    body.light-theme #workspace-panel,
+    body.light-theme header,
+    body.light-theme #mobile-bottom-nav {
+      background-color: #FFFFFF !important;
+      border-color: #E2E8F0 !important;
+      color: #1E293B !important;
+    }
+
+    body.light-theme .card {
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    }
+
+    /* 1. All Navy Backgrounds (Wildcard for any opacity variant e.g. /90, /80, /60, etc.) */
+    body.light-theme [class*="bg-navy-900"] {
+      background-color: #F1F5F9 !important;
+      border-color: #CBD5E1 !important;
+      color: #0F172A !important;
+    }
+
+    body.light-theme [class*="bg-navy-800"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme [class*="bg-navy-700"] {
+      background-color: #FFFFFF !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme [class*="bg-navy-600"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+      color: #1E293B !important;
+    }
+
+    body.light-theme [class*="bg-navy-500"] {
+      background-color: #E2E8F0 !important;
+    }
+
+    body.light-theme [class*="border-navy-"] {
+      border-color: #E2E8F0 !important;
+    }
+
+    /* 2. All Custom Hex Backgrounds Used Across the App */
+    body.light-theme .bg-\[\#0A1118\],
+    body.light-theme .bg-\[\#0b0f14\],
+    body.light-theme .bg-\[\#0b1016\],
+    body.light-theme .bg-\[\#0d1117\],
+    body.light-theme .bg-\[\#0d1117\]\/80,
+    body.light-theme .bg-\[\#0e141b\],
+    body.light-theme .bg-\[\#0E1724\],
+    body.light-theme .bg-\[\#0D1520\],
+    body.light-theme .bg-\[\#0f1620\],
+    body.light-theme .bg-\[\#101822\],
+    body.light-theme .bg-\[\#16212D\],
+    body.light-theme .bg-\[\#1c2128\],
+    body.light-theme .bg-\[\#1f242c\],
+    body.light-theme .bg-\[\#12141f\],
+    body.light-theme .bg-\[\#161427\],
+    body.light-theme .bg-\[\#121922\],
+    body.light-theme .bg-\[\#16212e\],
+    body.light-theme .bg-\[\#161b22\],
+    body.light-theme .bg-\[\#1e172a\],
+    body.light-theme .bg-\[\#181318\],
+    body.light-theme .bg-\[\#1a1510\] {
+      background-color: #FFFFFF !important;
+      background-image: none !important;
+      border-color: #E2E8F0 !important;
+      color: #1E293B !important;
+    }
+
+    body.light-theme .divide-\[\#30363d\]>* {
+      border-color: #E2E8F0 !important;
+    }
+
+    /* 3. Text Colors in Light Theme */
+    body.light-theme .text-white {
+      color: #0F172A !important;
+    }
+
+    body.light-theme .text-slate-100,
+    body.light-theme .text-slate-200 {
+      color: #1E293B !important;
+    }
+
+    body.light-theme .text-slate-300 {
+      color: #334155 !important;
+    }
+
+    body.light-theme .text-slate-400 {
+      color: #64748B !important;
+    }
+
+    body.light-theme .text-slate-500 {
+      color: #94A3B8 !important;
+    }
+
+    body.light-theme .text-\[\#C0C0C0\] {
+      color: #475569 !important;
+    }
+
+    /* Form Controls */
+    body.light-theme input,
+    body.light-theme select {
+      background-color: #FFFFFF !important;
+      color: #0F172A !important;
+      border-color: #CBD5E1 !important;
+    }
+
+    body.light-theme input:focus,
+    body.light-theme select:focus {
+      border-color: #0891B2 !important;
+    }
+
+    /* Buttons */
+    body.light-theme .glass-btn {
+      background-color: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      color: #1E293B !important;
+    }
+
+    body.light-theme .glass-btn:hover {
+      background-color: #F1F5F9 !important;
+    }
+
+    /* Tables */
+    body.light-theme thead {
+      background-color: #F8FAFC !important;
+    }
+
+    body.light-theme th {
+      color: #475569 !important;
+      border-bottom-color: #E2E8F0 !important;
+      background-color: #F1F5F9 !important;
+    }
+
+    body.light-theme td {
+      border-bottom-color: #E2E8F0 !important;
+      color: #1E293B;
+    }
+
+    body.light-theme tr:hover td {
+      background-color: rgba(0, 0, 0, 0.02) !important;
+    }
+
+    /* 4. Top 4 Predicted Podium Card */
+    body.light-theme #top4-podium-card {
+      background: linear-gradient(135deg, #FEFCE8 0%, #FFFFFF 50%, #F8FAFC 100%) !important;
+      border-color: #FEF08A !important;
+    }
+
+    body.light-theme #top4-podium-grid>div {
+      background-color: #FFFFFF !important;
+      border-color: #E2E8F0 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    /* 5th Dog Roughie Card inside Top 4 */
+    body.light-theme #top4-podium-card [class*="from-\[\#1a1510\]"],
+    body.light-theme #top4-podium-card .shadow-amber-950\/40 {
+      background: linear-gradient(135deg, #FFFDF5 0%, #FEF3C7 100%) !important;
+      background-image: linear-gradient(135deg, #FFFDF5 0%, #FEF3C7 100%) !important;
+      border-color: #F59E0B !important;
+      box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.2) !important;
+    }
+
+    body.light-theme #top4-podium-card [class*="from-\[\#1a1510\]"] button {
+      color: #78350F !important;
+    }
+
+    body.light-theme #top4-podium-card [class*="from-\[\#1a1510\]"] .text-amber-400\/90 {
+      color: #92400E !important;
+    }
+
+    body.light-theme #top4-podium-card [class*="from-\[\#1a1510\]"] .border-amber-900\/60 {
+      border-color: #FDE68A !important;
+    }
+
+    /* 5. Dog Order by Hype % Card */
+    body.light-theme #hype-podium-card {
+      background: linear-gradient(135deg, #FFF5F7 0%, #FFFFFF 50%, #F8FAFC 100%) !important;
+      background-image: linear-gradient(135deg, #FFF5F7 0%, #FFFFFF 50%, #F8FAFC 100%) !important;
+      border-color: #FECDD3 !important;
+    }
+
+    body.light-theme #hype-podium-grid>div {
+      background-color: #FFFFFF !important;
+      border-color: #E2E8F0 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    body.light-theme #hype-podium-grid [class*="bg-navy-800"] {
+      background-color: #F1F5F9 !important;
+      border-color: #CBD5E1 !important;
+      color: #0891B2 !important;
+    }
+
+    body.light-theme #hype-podium-grid button {
+      color: #0F172A !important;
+    }
+
+    body.light-theme #hype-podium-grid button:hover {
+      color: #DB2777 !important;
+    }
+
+    body.light-theme #hype-podium-grid .text-pink-300 {
+      color: #BE185D !important;
+    }
+
+    body.light-theme #hype-podium-grid .text-purple-300 {
+      color: #7C3AED !important;
+    }
+
+    body.light-theme #hype-podium-grid .text-indigo-300 {
+      color: #4338CA !important;
+    }
+
+    body.light-theme #hype-podium-grid .bg-pink-600\/30 {
+      background-color: #FDF2F8 !important;
+      border-color: #F472B6 !important;
+    }
+
+    body.light-theme #hype-podium-grid .bg-purple-600\/30 {
+      background-color: #FAF5FF !important;
+      border-color: #C084FC !important;
+    }
+
+    body.light-theme #hype-podium-grid .bg-indigo-600\/30 {
+      background-color: #EEF2FF !important;
+      border-color: #818CF8 !important;
+    }
+
+    body.light-theme #hype-podium-grid .bg-slate-700\/60 {
+      background-color: #F1F5F9 !important;
+      border-color: #CBD5E1 !important;
+      color: #475569 !important;
+    }
+
+    /* 6. Exotic Odds & Staking Matrix Card */
+    body.light-theme #first4-estimator-card {
+      background: #FFFFFF !important;
+      background-image: none !important;
+      border-color: #E2E8F0 !important;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      color: #1E293B !important;
+    }
+
+    body.light-theme #first4-estimator-card [class*="bg-\[\#0e141b\]"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #first4-estimator-card [class*="bg-\[\#0b1016\]"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #first4-estimator-card [class*="bg-\[\#101822\]"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    body.light-theme #first4-estimator-card [class*="bg-\[\#101822\]"] .border-navy-600 {
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #first4-estimator-card [class*="bg-\[\#0f1620\]"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #first4-estimator-card details[class*="bg-\[\#0b0f14\]"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #first4-estimator-card .border-navy-600 {
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #first4-estimator-card .bg-navy-800 {
+      background-color: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      color: #334155 !important;
+    }
+
+    body.light-theme #first4-estimator-card .bg-navy-800:hover {
+      background-color: #F8FAFC !important;
+      color: #0F172A !important;
+    }
+
+    body.light-theme #first4-estimator-card .bg-navy-700 {
+      background-color: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      color: #334155 !important;
+    }
+
+    body.light-theme #first4-estimator-card .bg-navy-600 {
+      background-color: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      color: #334155 !important;
+    }
+
+    body.light-theme #first4-estimator-card .bg-navy-600:hover {
+      background-color: #F1F5F9 !important;
+      color: #0F172A !important;
+    }
+
+    /* 7. Softmax Probability & Value Edge Ratings Card */
+    body.light-theme #analysis-table-card .bg-\[\#16212D\] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #analysis-table-card .bg-navy-800 {
+      background-color: #F1F5F9 !important;
+      border-color: #CBD5E1 !important;
+    }
+
+    /* 8. Race Cards Panel on Left */
+    body.light-theme #race-list>div {
+      border-bottom: 1px solid #F1F5F9;
+    }
+
+    body.light-theme #race-list>div:hover {
+      background-color: #F8FAFC !important;
+    }
+
+    body.light-theme #race-list>div.bg-navy-600 {
+      background-color: #EFF6FF !important;
+      border-left-color: #10B981 !important;
+    }
+
+    body.light-theme #race-list .bg-gray-800 {
+      background-color: #E2E8F0 !important;
+      color: #1E293B !important;
+    }
+
+    /* 9. Soft Pastel Pills & Badges */
+    body.light-theme [class*="bg-emerald-950"] {
+      background-color: #ECFDF5 !important;
+      border-color: #A7F3D0 !important;
+      color: #065F46 !important;
+    }
+
+    body.light-theme [class*="bg-amber-950"] {
+      background-color: #FEF3C7 !important;
+      border-color: #FDE68A !important;
+      color: #92400E !important;
+    }
+
+    body.light-theme [class*="bg-purple-950"] {
+      background-color: #F5F3FF !important;
+      border-color: #DDD6FE !important;
+      color: #5B21B6 !important;
+    }
+
+    body.light-theme [class*="bg-rose-950"] {
+      background-color: #FFF1F2 !important;
+      border-color: #FECDD3 !important;
+      color: #9F1239 !important;
+    }
+
+    body.light-theme [class*="bg-blue-950"] {
+      background-color: #EFF6FF !important;
+      border-color: #BFDBFE !important;
+      color: #1E40AF !important;
+    }
+
+    body.light-theme [class*="bg-pink-950"] {
+      background-color: #FDF2F8 !important;
+      border-color: #FBCFE8 !important;
+      color: #9D174D !important;
+    }
+
+    body.light-theme [class*="bg-teal-950"] {
+      background-color: #F0FDFA !important;
+      border-color: #99F6E4 !important;
+      color: #115E59 !important;
+    }
+
+    body.light-theme [class*="bg-cyan-950"] {
+      background-color: #ECFEFF !important;
+      border-color: #A5F3FC !important;
+      color: #155E75 !important;
+    }
+
+    body.light-theme [class*="bg-yellow-950"] {
+      background-color: #FEF3C7 !important;
+      border-color: #FCD34D !important;
+      color: #92400E !important;
+    }
+
+    body.light-theme [class*="bg-black\/20"],
+    body.light-theme [class*="bg-black\/30"] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    /* 10. Dog Dossier Modal */
+    body.light-theme #dog-dossier-modal>div {
+      background-color: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+    }
+
+    body.light-theme #dog-dossier-modal .bg-\[\#0d1117\] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme #dog-dossier-modal .bg-\[\#1c2128\] {
+      background-color: #F8FAFC !important;
+      border-color: #E2E8F0 !important;
+    }
+
+    body.light-theme .sticky {
+      background-color: #FFFFFF !important;
+    }
+
+    /* Responsive touch targets */
+    @media (max-width: 768px) {
+
+      button,
+      select,
+      input {
+        min-height: 34px;
+      }
+    }
   </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col bg-navy-800 text-slate-200 text-sm font-sans">
+
+<body
+  class="h-screen h-[100dvh] w-screen overflow-hidden flex flex-col bg-navy-800 text-slate-200 text-sm font-sans select-none">
 
   <!-- Header -->
-  <header class="bg-navy-700 border-b border-navy-500 px-5 py-3 flex items-center justify-between shrink-0 z-20">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 flex items-center justify-center shrink-0">
-        <img src="/static/greyhound_logo.png" alt="Greyhound Logo" class="w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+  <header
+    class="bg-navy-700 border-b border-navy-500 px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col md:flex-row md:items-center justify-between shrink-0 z-20 gap-2">
+    <div class="flex items-center justify-between w-full md:w-auto">
+      <div class="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+        <div class="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
+          <img src="/static/greyhound_logo.png" alt="Greyhound Logo"
+            class="w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-[16px] font-bold text-white tracking-wide leading-tight truncate">Greyhound
+            Precision Engine</h1>
+          <p
+            class="text-[9px] sm:text-[10px] text-slate-400 leading-tight uppercase tracking-wider mt-0.5 truncate hidden sm:block">
+            Quantitative Multi-Bet Optimizer & Sectional Modeling</p>
+        </div>
       </div>
-      <div>
-        <h1 class="text-[16px] font-bold text-white tracking-wide leading-tight">Greyhound Precision Engine</h1>
-        <p class="text-[10px] text-slate-400 leading-tight uppercase tracking-wider mt-0.5">Quantitative Multi-Bet Optimizer & Sectional Modeling</p>
+
+      <!-- Quick Theme Toggle for Mobile Header -->
+      <div class="flex items-center space-x-2 md:hidden shrink-0">
+        <button onclick="toggleTheme()"
+          class="p-2 rounded-lg bg-navy-600 hover:bg-navy-500 border border-navy-500 text-amber-400 transition shadow-sm cursor-pointer"
+          title="Toggle Light / Dark Theme">
+          <i class="theme-toggle-icon fa-solid fa-sun text-xs"></i>
+        </button>
       </div>
     </div>
-    
-    <div class="flex items-center space-x-2">
-      <a href="/api/export/predictions" download="historical_predictions.txt" class="glass-btn px-3 py-1.5 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+
+    <!-- Action Buttons: Horizontal scroll on mobile, flex on desktop -->
+    <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5 w-full md:w-auto shrink-0 text-xs">
+      <a href="/api/export/predictions" download="historical_predictions.txt"
+        class="glass-btn px-2.5 py-1.5 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
         <i class="fa-solid fa-download text-slate-400"></i><span>Export DB</span>
       </a>
-      <button onclick="triggerAction('sportsbet')" id="btn-sportsbet" class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
-        <i class="fa-solid fa-bolt"></i><span>Sync Sportsbet Odds</span>
+      <button onclick="triggerAction('sportsbet')" id="btn-sportsbet"
+        class="px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
+        <i class="fa-solid fa-bolt"></i><span>Sportsbet</span>
       </button>
-      <button onclick="triggerAction('thedogs')" id="btn-thedogs" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
-        <i class="fa-solid fa-rotate"></i><span>Fetch Race Cards</span>
+      <button onclick="triggerAction('thedogs')" id="btn-thedogs"
+        class="px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
+        <i class="fa-solid fa-rotate"></i><span>Race Cards</span>
       </button>
-      <button onclick="triggerAction('live-odds')" id="btn-live-odds" class="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
-        <i class="fa-solid fa-dollar-sign"></i><span>Poll TheDogs SP</span>
+      <button onclick="triggerAction('live-odds')" id="btn-live-odds"
+        class="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
+        <i class="fa-solid fa-dollar-sign"></i><span>TheDogs SP</span>
       </button>
-      <button onclick="triggerAction('scratchings')" id="btn-scratchings" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
-        <i class="fa-solid fa-ban"></i><span>Sync Scratchings</span>
+      <button onclick="triggerAction('scratchings')" id="btn-scratchings"
+        class="px-2.5 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
+        <i class="fa-solid fa-ban"></i><span>Scratchings</span>
       </button>
-      <button onclick="triggerAction('fasttrack')" id="btn-fasttrack" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
-        <i class="fa-solid fa-cloud-arrow-down"></i><span>FastTrack Form</span>
+      <button onclick="triggerAction('fasttrack')" id="btn-fasttrack"
+        class="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
+        <i class="fa-solid fa-cloud-arrow-down"></i><span>FastTrack</span>
       </button>
-      <button onclick="triggerAction('weather')" id="btn-weather" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+      <button onclick="triggerAction('weather')" id="btn-weather"
+        class="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
         <i class="fa-solid fa-cloud-sun-rain"></i><span>Weather</span>
       </button>
-      <button onclick="switchTab('learning')" id="btn-quick-learning" class="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 border border-violet-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm">
+      <button onclick="switchTab('learning')" id="btn-quick-learning"
+        class="px-2.5 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-400 border border-violet-500/30 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0">
         <i class="fa-solid fa-brain"></i><span>Daily Audit</span>
       </button>
-      <button onclick="switchTab('settings')" id="btn-quick-settings" class="px-3 py-1.5 bg-slate-700/40 hover:bg-slate-700/80 text-slate-300 border border-slate-600/50 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm" title="Application Settings">
+      <button onclick="openSettings()" id="btn-quick-settings"
+        class="px-2.5 py-1.5 bg-slate-700/40 hover:bg-slate-700/80 text-slate-300 border border-slate-600/50 rounded text-[11px] font-medium flex items-center space-x-1.5 transition shadow-sm whitespace-nowrap shrink-0"
+        title="Application Settings">
         <i class="fa-solid fa-gear text-slate-400"></i><span>Settings</span>
+      </button>
+      <!-- Desktop Theme Toggle -->
+      <button onclick="toggleTheme()" id="btn-theme-toggle"
+        class="hidden md:flex px-2.5 py-1.5 rounded bg-navy-600 hover:bg-navy-500 border border-navy-500 text-amber-400 hover:text-amber-300 transition shadow-sm items-center space-x-1.5 cursor-pointer whitespace-nowrap shrink-0"
+        title="Toggle Light / Dark Theme">
+        <i class="theme-toggle-icon fa-solid fa-sun text-xs"></i>
+        <span class="text-[11px] font-semibold" id="theme-toggle-label">Light</span>
       </button>
     </div>
   </header>
 
-  <!-- Status Bar -->
-  <div class="bg-[#0A1118] border-b border-navy-500 px-5 py-2 flex flex-wrap items-center justify-between text-[11px] shrink-0 z-10 shadow-sm">
-    <div class="flex items-center space-x-5 text-slate-400">
+  <!-- Status Bar (Horizontal scroll on mobile) -->
+  <div
+    class="bg-[#0A1118] border-b border-navy-500 px-3 sm:px-5 py-2 flex items-center justify-between text-[11px] shrink-0 z-10 shadow-sm overflow-x-auto no-scrollbar whitespace-nowrap gap-4 touch-scroll">
+    <div class="flex items-center space-x-4 sm:space-x-5 text-slate-400 shrink-0">
       <div>Meetings: <span id="stat-meetings" class="font-bold text-slate-200">0</span></div>
       <div>Races Loaded: <span id="stat-races" class="font-bold text-slate-200">0</span></div>
-      <div>Runners Tracked: <span id="stat-runners" class="font-bold text-slate-200">0</span></div>
-      <div>Past Starts: <span id="stat-pp" class="font-bold text-accent-teal">0</span></div>
+      <div>Runners: <span id="stat-runners" class="font-bold text-slate-200">0</span></div>
+      <div>Starts: <span id="stat-pp" class="font-bold text-accent-teal">0</span></div>
       <div>Weather: <span id="stat-weather" class="font-bold text-amber-400">0</span></div>
     </div>
-    
-    <div class="flex items-center space-x-3">
-      <div id="live-system-badge" class="flex items-center space-x-1.5 bg-emerald-950/40 border border-emerald-500/40 px-2.5 py-1 rounded-full text-[10px]">
+
+    <div class="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
+      <div id="live-system-badge"
+        class="flex items-center space-x-1.5 bg-emerald-950/40 border border-emerald-500/40 px-2.5 py-1 rounded-full text-[10px]">
         <span class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block animate-pulse"></span>
-        <span class="text-accent-green font-bold">System Online</span>
+        <span class="text-accent-green font-bold">Online</span>
       </div>
 
-      <div id="daemon-badge-container" class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
+      <div id="daemon-badge-container"
+        class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
         <span id="daemon-pulse" class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block animate-pulse"></span>
-        <span id="daemon-status-text" class="text-slate-300 font-mono">Daemon: Active (60s)</span>
-        <button onclick="toggleDaemon()" id="btn-daemon-toggle" class="ml-1 px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-white transition">Pause</button>
-        <button onclick="pollDaemonNow()" id="btn-daemon-now" class="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition"><i class="fa-solid fa-bolt"></i></button>
+        <span id="daemon-status-text" class="text-slate-300 font-mono">Daemon: 60s</span>
+        <button onclick="toggleDaemon()" id="btn-daemon-toggle"
+          class="ml-1 px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-white transition">Pause</button>
+        <button onclick="pollDaemonNow()" id="btn-daemon-now"
+          class="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition"><i
+            class="fa-solid fa-bolt"></i></button>
       </div>
-      
-      <div class="flex items-center space-x-1.5 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
+
+      <div
+        class="flex items-center space-x-1.5 bg-navy-600 border border-navy-500 px-2.5 py-1 rounded-full text-[10px]">
         <i class="fa-solid fa-clock text-accent-teal"></i>
-        <span class="text-slate-400">Timezone:</span>
-        <select id="tz-select" onchange="changeTimezone(this.value)" class="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer">
-          <option value="AWST" selected>AWST (WA - UTC+8)</option>
-          <option value="AEDT">AEDT (East Coast UTC+11)</option>
+        <select id="tz-select" onchange="changeTimezone(this.value)"
+          class="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer">
+          <option value="AWST" selected>AWST (+8)</option>
+          <option value="AEDT">AEDT (+11)</option>
         </select>
       </div>
-      
-      <div id="live-task-indicator" class="flex items-center space-x-1.5 text-slate-400 italic text-[10px]">
+
+      <div id="live-task-indicator"
+        class="flex items-center space-x-1.5 text-slate-400 italic text-[10px] hidden sm:flex">
         <span class="w-1.5 h-1.5 rounded-full bg-accent-green inline-block"></span>
-        <span id="task-text" class="truncate max-w-[150px]">All scrapers idle</span>
+        <span id="task-text" class="truncate max-w-[140px]">All idle</span>
       </div>
     </div>
   </div>
 
   <!-- Main Grid -->
-  <main class="flex-1 flex overflow-hidden">
-    
-    <!-- Race Cards Panel -->
-    <section class="w-[330px] bg-[#0E1724] border-r border-navy-500 flex flex-col shrink-0">
-      <div class="px-4 py-4 flex items-center justify-between border-b border-navy-500">
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- Race Cards Panel (Full width on mobile when in cards view, 330px on desktop) -->
+    <section id="race-cards-panel"
+      class="w-full md:w-[330px] bg-[#0E1724] border-r border-navy-500 flex flex-col shrink-0 h-full">
+      <div class="px-4 py-3 sm:py-4 flex items-center justify-between border-b border-navy-500">
         <div class="flex items-center space-x-2 text-slate-200">
           <i class="fa-solid fa-ticket text-slate-400"></i>
           <h2 class="text-sm font-semibold tracking-wide">RACE CARDS</h2>
         </div>
         <div class="flex bg-navy-800 rounded p-0.5 text-[10px] font-medium border border-navy-500">
-          <button onclick="loadRaces('upcoming')" id="tab-upcoming" class="px-2.5 py-1 rounded bg-navy-600 text-white shadow-sm">Upcoming</button>
-          <button onclick="loadRaces('all')" id="tab-all" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">All</button>
-          <button onclick="loadRaces('completed')" id="tab-completed" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Results</button>
+          <button onclick="loadRaces('upcoming')" id="tab-upcoming"
+            class="px-2.5 py-1 rounded bg-navy-600 text-white shadow-sm">Upcoming</button>
+          <button onclick="loadRaces('all')" id="tab-all"
+            class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">All</button>
+          <button onclick="loadRaces('completed')" id="tab-completed"
+            class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">Results</button>
         </div>
       </div>
-      
-      <div class="px-4 py-3 border-b border-navy-500 flex flex-col space-y-2">
+
+      <div class="px-4 py-2.5 sm:py-3 border-b border-navy-500 flex flex-col space-y-2">
         <div class="relative w-full">
           <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-[11px]"></i>
-          <input type="text" id="track-search-input" oninput="filterRaces()" placeholder="Filter track e.g. Mandurah..." class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 text-[11px] pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-accent-teal transition">
+          <input type="text" id="track-search-input" oninput="filterRaces()" placeholder="Filter track e.g. Mandurah..."
+            class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 text-[11px] pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-accent-teal transition">
         </div>
-        <select id="track-select-filter" onchange="filterRaces()" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 text-[11px] px-2.5 py-1.5 focus:outline-none focus:border-accent-teal transition appearance-none">
+        <select id="track-select-filter" onchange="filterRaces()"
+          class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 text-[11px] px-2.5 py-1.5 focus:outline-none focus:border-accent-teal transition appearance-none">
           <option value="">All Tracks (91)</option>
         </select>
       </div>
-      
+
       <!-- List container -->
-      <div id="race-list" class="flex-1 overflow-y-auto px-3 py-3 space-y-2">
+      <div id="race-list" class="flex-1 overflow-y-auto px-3 py-3 space-y-2 pb-20 md:pb-3 touch-scroll">
         <!-- Rendered by JS -->
       </div>
     </section>
 
-    <!-- Main Workspace -->
-    <section class="flex-1 bg-navy-800 flex flex-col min-w-0 overflow-y-auto relative">
-      
-      <!-- Top Navigation Tabs -->
-      <div class="border-b border-navy-500 px-6 pt-4 flex space-x-6 text-[12px] bg-[#0A1118] sticky top-0 z-10">
-        <button onclick="switchTab('analysis')" id="tab-nav-analysis" class="pb-3 active-tab flex items-center space-x-2 transition">
+    <!-- Main Workspace (Hidden on mobile when cards view active, flex on desktop) -->
+    <section id="workspace-panel"
+      class="hidden md:flex flex-1 bg-navy-800 flex-col min-w-0 overflow-y-auto relative h-full pb-20 md:pb-6 touch-scroll">
+
+      <!-- Mobile Top Return Bar -->
+      <div
+        class="md:hidden px-3.5 py-2.5 bg-navy-700 border-b border-navy-500 flex items-center justify-between sticky top-0 z-20 shrink-0 shadow-sm">
+        <button onclick="setMobileView('cards')"
+          class="px-3 py-1.5 rounded-lg bg-navy-600 hover:bg-navy-500 border border-navy-500 text-accent-teal text-xs font-bold flex items-center space-x-1.5 transition cursor-pointer">
+          <i class="fa-solid fa-arrow-left text-[11px]"></i>
+          <span>Races</span>
+        </button>
+        <span id="mobile-top-race-indicator" class="font-bold text-xs text-slate-200 truncate max-w-[180px]">Select
+          Race</span>
+        <button onclick="toggleTheme()"
+          class="p-1.5 rounded-lg bg-navy-600 border border-navy-500 text-amber-400 text-xs cursor-pointer">
+          <i class="theme-toggle-icon fa-solid fa-sun"></i>
+        </button>
+      </div>
+
+      <!-- Top Navigation Tabs (Horizontal swipeable on mobile) -->
+      <div
+        class="border-b border-navy-500 px-4 sm:px-6 pt-3 sm:pt-4 flex space-x-4 sm:space-x-6 text-[12px] bg-[#0A1118] sticky top-0 md:top-0 z-10 overflow-x-auto no-scrollbar whitespace-nowrap shrink-0">
+        <button onclick="switchTab('analysis')" id="tab-nav-analysis"
+          class="pb-3 active-tab flex items-center space-x-2 transition shrink-0">
           <i class="fa-solid fa-chart-line text-accent-teal"></i><span>RACE ANALYSIS & ODDS</span>
         </button>
-        <button onclick="switchTab('multis')" id="tab-nav-multis" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+        <button onclick="switchTab('multis')" id="tab-nav-multis"
+          class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition shrink-0">
           <i class="fa-solid fa-trophy text-amber-500/70"></i><span>Multi Optimizer (+EV)</span>
         </button>
-        <button onclick="switchTab('backtest')" id="tab-nav-backtest" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+        <button onclick="switchTab('backtest')" id="tab-nav-backtest"
+          class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition shrink-0">
           <i class="fa-solid fa-flask text-emerald-500/70"></i><span>Backtest & Strategy Lab</span>
         </button>
-        <button onclick="switchTab('learning')" id="tab-nav-learning" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+        <button onclick="switchTab('learning')" id="tab-nav-learning"
+          class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition shrink-0">
           <i class="fa-solid fa-brain text-purple-500/70"></i><span>Daily Learning & Audit</span>
         </button>
-        <button onclick="switchTab('settings')" id="tab-nav-settings" class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition">
+        <button onclick="openSettings()" id="tab-nav-settings"
+          class="pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition shrink-0">
           <i class="fa-solid fa-gear text-slate-400"></i><span>Settings</span>
         </button>
       </div>
-      
-      <div class="p-6 max-w-[1400px] w-full mx-auto">
-        
+
+      <div class="p-3 sm:p-6 max-w-[1400px] w-full mx-auto">
+
         <!-- View 1: Analysis -->
         <div id="view-analysis" class="space-y-5">
-          
+
           <!-- Race Header Card -->
           <div id="race-detail-container" class="hidden card overflow-hidden relative border-navy-500 min-h-[140px]">
-            <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1616083049103-6f8976dfbf77?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-20 pointer-events-none"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-navy-800 via-navy-800/90 to-transparent z-0 pointer-events-none"></div>
-            
+            <div
+              class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1616083049103-6f8976dfbf77?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-20 pointer-events-none">
+            </div>
+            <div
+              class="absolute inset-0 bg-gradient-to-r from-navy-800 via-navy-800/90 to-transparent z-0 pointer-events-none">
+            </div>
+
             <div class="relative z-10 p-5 flex flex-col justify-center h-full">
-              <span id="race-badge-track" class="bg-blue-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded self-start uppercase tracking-wider mb-2 shadow">TRACK</span>
+              <span id="race-badge-track"
+                class="bg-blue-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded self-start uppercase tracking-wider mb-2 shadow">TRACK</span>
               <h2 id="race-title" class="text-xl font-bold text-white tracking-wide">Select a race</h2>
               <p id="race-subtitle" class="text-[13px] text-slate-300 mt-1 font-medium">To view prediction analysis</p>
-              
+
               <!-- Weather Pills -->
               <div id="weather-pill" class="mt-4 flex items-center space-x-4 text-[11px] font-medium text-slate-300">
-                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-sun text-amber-400"></i><span id="w-temp">--°C</span></span>
-                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-droplet text-blue-400"></i><span id="w-rain">--mm</span></span>
-                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-wind text-accent-teal"></i><span id="w-wind">--km/h</span></span>
-                <span id="w-cond-badge" class="px-2 py-0.5 rounded border border-navy-500 bg-navy-600/80 text-slate-200"><span id="w-cond">--</span></span>
+                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-sun text-amber-400"></i><span
+                    id="w-temp">--°C</span></span>
+                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-droplet text-blue-400"></i><span
+                    id="w-rain">--mm</span></span>
+                <span class="flex items-center space-x-1.5"><i class="fa-solid fa-wind text-accent-teal"></i><span
+                    id="w-wind">--km/h</span></span>
+                <span id="w-cond-badge"
+                  class="px-2 py-0.5 rounded border border-navy-500 bg-navy-600/80 text-slate-200"><span
+                    id="w-cond">--</span></span>
               </div>
 
               <!-- Autonomous Dynamic Track Calibration Pill -->
-              <div id="track-calibration-pill" class="hidden mt-3 flex items-center space-x-2 text-xs flex-wrap gap-y-1">
-                <span id="track-calibration-badge" class="px-2.5 py-1 rounded bg-teal-950/90 text-teal-300 border border-teal-700/80 flex items-center space-x-2 shadow">
+              <div id="track-calibration-pill"
+                class="hidden mt-3 flex items-center space-x-2 text-xs flex-wrap gap-y-1">
+                <span id="track-calibration-badge"
+                  class="px-2.5 py-1 rounded bg-teal-950/90 text-teal-300 border border-teal-700/80 flex items-center space-x-2 shadow">
                   <i class="fa-solid fa-crosshairs text-[11px] text-teal-400"></i>
                   <span id="track-calibration-text" class="font-semibold text-slate-200"></span>
                 </span>
-                <button onclick="recalibrateTracksNow()" id="btn-recalibrate-track" class="px-2 py-1 rounded bg-navy-700 hover:bg-navy-600 border border-navy-500 text-[10px] text-slate-300 font-semibold transition flex items-center space-x-1" title="Recompute empirical Bayesian track calibrations across historical race results">
+                <button onclick="recalibrateTracksNow()" id="btn-recalibrate-track"
+                  class="px-2 py-1 rounded bg-navy-700 hover:bg-navy-600 border border-navy-500 text-[10px] text-slate-300 font-semibold transition flex items-center space-x-1"
+                  title="Recompute empirical Bayesian track calibrations across historical race results">
                   <i class="fa-solid fa-arrows-rotate text-[10px]"></i>
                   <span>Recalibrate</span>
                 </button>
@@ -265,7 +943,8 @@
 
               <!-- Scratched Banner -->
               <div id="scratched-banner" class="hidden mt-3 flex items-center space-x-2 text-xs">
-                <span class="px-2.5 py-1 rounded bg-rose-950/90 text-rose-300 border border-rose-800/80 flex items-center space-x-2 shadow">
+                <span
+                  class="px-2.5 py-1 rounded bg-rose-950/90 text-rose-300 border border-rose-800/80 flex items-center space-x-2 shadow">
                   <i class="fa-solid fa-ban text-[11px] text-rose-400"></i>
                   <span class="uppercase tracking-wider text-[10px] font-black text-rose-400">Scratched:</span>
                   <span id="scratched-list-text" class="font-semibold text-slate-200"></span>
@@ -273,7 +952,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Top 4 Predicted Podium -->
           <!-- Top 4 Predicted Podium + 5th Dog Value Roughie -->
           <div id="top4-podium-card" class="hidden card p-5 border-navy-500">
@@ -282,7 +961,9 @@
                 <i class="fa-solid fa-trophy text-amber-400"></i>
                 <span>Model Top 4 Finish + 5th Dog Value Roughie</span>
               </h3>
-              <div class="text-[10px] text-slate-400 flex items-center space-x-1"><i class="fa-solid fa-fire text-amber-400"></i><span>Projected First 4 & Box 5 Exotic Injection</span></div>
+              <div class="text-[10px] text-slate-400 flex items-center space-x-1"><i
+                  class="fa-solid fa-fire text-amber-400"></i><span>Projected First 4 & Box 5 Exotic Injection</span>
+              </div>
             </div>
             <div id="top4-podium-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
               <!-- Rendered by JS -->
@@ -290,7 +971,8 @@
           </div>
 
           <!-- Cloned: Market Hype % Leaderboard (Public / Bookmaker Order) -->
-          <div id="hype-podium-card" class="hidden card p-5 border-navy-500 bg-gradient-to-br from-[#12141f] via-[#161427] to-[#121922]">
+          <div id="hype-podium-card"
+            class="hidden card p-5 border-navy-500 bg-gradient-to-br from-[#12141f] via-[#161427] to-[#121922]">
             <div class="flex items-center justify-between border-b border-navy-500 pb-3 mb-4">
               <h3 class="text-[11px] font-bold text-slate-200 tracking-wider uppercase flex items-center space-x-2">
                 <i class="fa-solid fa-fire-flame-curved text-pink-400"></i>
@@ -307,28 +989,34 @@
           </div>
 
           <!-- Exotic Odds & Staking Matrix Card (Trifecta & First 4) -->
-          <div id="first4-estimator-card" class="hidden card p-5 border-navy-500 bg-gradient-to-br from-[#121922] via-[#16212e] to-[#121922]">
+          <div id="first4-estimator-card"
+            class="hidden card p-5 border-navy-500 bg-gradient-to-br from-[#121922] via-[#16212e] to-[#121922]">
             <div class="flex flex-wrap items-center justify-between border-b border-navy-500 pb-3 mb-4 gap-3">
               <div>
                 <h3 class="text-xs font-bold text-slate-100 tracking-wider uppercase flex items-center space-x-2">
                   <i class="fa-solid fa-calculator text-emerald-400"></i>
                   <span>Exotic Odds & Staking Matrix (TAB Pari-Mutuel Estimates)</span>
                 </h3>
-                <p class="text-[10px] text-slate-400 mt-0.5">Real-Time Dividend Simulations & +EV Staking Targets • Default 5% Flexi Stake</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Real-Time Dividend Simulations & +EV Staking Targets •
+                  Default 5% Flexi Stake</p>
               </div>
 
               <!-- Tab Switcher & Verdict Badges -->
               <div class="flex flex-wrap items-center gap-2">
                 <div class="inline-flex rounded-lg bg-navy-800 p-0.5 border border-navy-600 text-xs shadow-inner">
-                  <button id="exotic-tab-tri" onclick="switchExoticTab('trifecta')" class="px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 bg-emerald-500 text-black shadow">
+                  <button id="exotic-tab-tri" onclick="switchExoticTab('trifecta')"
+                    class="px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 bg-emerald-500 text-black shadow">
                     <i class="fa-solid fa-bullseye text-[10px]"></i>
                     <span>4-Dog Trifecta (5%)</span>
                   </button>
-                  <button id="exotic-tab-f4" onclick="switchExoticTab('first4')" class="px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 text-slate-300 hover:text-white">
+                  <button id="exotic-tab-f4" onclick="switchExoticTab('first4')"
+                    class="px-3 py-1 rounded-md font-bold transition flex items-center space-x-1.5 text-slate-300 hover:text-white">
                     <i class="fa-solid fa-layer-group text-purple-400 text-[10px]"></i>
                     <span>5-Dog First 4 (5%)</span>
                   </button>
-                  <button id="exotic-tab-both" onclick="switchExoticTab('both')" class="px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 text-slate-400 hover:text-white" title="Compare Trifecta and First 4 side-by-side">
+                  <button id="exotic-tab-both" onclick="switchExoticTab('both')"
+                    class="px-2.5 py-1 rounded-md font-bold transition flex items-center space-x-1 text-slate-400 hover:text-white"
+                    title="Compare Trifecta and First 4 side-by-side">
                     <i class="fa-solid fa-table-columns text-[10px]"></i>
                     <span class="hidden sm:inline">Compare</span>
                   </button>
@@ -344,35 +1032,45 @@
               <!-- Injected by JS -->
             </div>
           </div>
-          
+
           <!-- Value Edge Table -->
           <div class="card overflow-hidden border-navy-500 hidden" id="analysis-table-card">
-            <div class="flex items-center justify-between p-3.5 border-b border-navy-500 bg-[#16212D] flex-wrap gap-2.5">
+            <div
+              class="flex items-center justify-between p-3.5 border-b border-navy-500 bg-[#16212D] flex-wrap gap-2.5">
               <div class="flex items-center space-x-3">
                 <h3 class="text-xs font-bold text-slate-200 tracking-wider flex items-center space-x-2">
                   <i class="fa-solid fa-chart-simple text-accent-teal"></i>
                   <span>Softmax Probability & Value Edge Ratings</span>
                 </h3>
-                <span class="text-[10px] text-slate-400 hidden sm:inline border-l border-navy-500 pl-2">Sportsbet fixed odds highlighted • Green indicates +EV edge</span>
+                <span class="text-[10px] text-slate-400 hidden sm:inline border-l border-navy-500 pl-2">Sportsbet fixed
+                  odds highlighted • Green indicates +EV edge</span>
               </div>
-              
+
               <!-- Quick Sort Toggle Bar -->
               <div class="flex items-center space-x-2 text-xs">
                 <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sort:</span>
                 <div class="inline-flex rounded-lg bg-navy-800 p-0.5 border border-navy-500 space-x-0.5">
-                  <button id="pill-sort-model_win" onclick="setRunnerSort('model_win')" class="px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center space-x-1 bg-emerald-600 text-white shadow" title="Sort by Model Win Probability">
+                  <button id="pill-sort-model_win" onclick="setRunnerSort('model_win')"
+                    class="px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center space-x-1 bg-emerald-600 text-white shadow"
+                    title="Sort by Model Win Probability">
                     <span>Model Win%</span>
                     <i id="pill-icon-model_win" class="fa-solid fa-arrow-down-wide-short text-[10px]"></i>
                   </button>
-                  <button id="pill-sort-hype" onclick="setRunnerSort('hype')" class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1" title="Sort by Public / Bookmaker Hype (Implied Win %)">
+                  <button id="pill-sort-hype" onclick="setRunnerSort('hype')"
+                    class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1"
+                    title="Sort by Public / Bookmaker Hype (Implied Win %)">
                     <span>Hype %</span>
                     <i id="pill-icon-hype" class="fa-solid fa-sort text-[10px] text-slate-600"></i>
                   </button>
-                  <button id="pill-sort-edge" onclick="setRunnerSort('edge')" class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1" title="Sort by Sportsbet +EV Edge">
+                  <button id="pill-sort-edge" onclick="setRunnerSort('edge')"
+                    class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1"
+                    title="Sort by Sportsbet +EV Edge">
                     <span>SB Edge</span>
                     <i id="pill-icon-edge" class="fa-solid fa-sort text-[10px] text-slate-600"></i>
                   </button>
-                  <button id="pill-sort-box" onclick="setRunnerSort('box')" class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1" title="Sort by Box Number">
+                  <button id="pill-sort-box" onclick="setRunnerSort('box')"
+                    class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-400 hover:text-white transition flex items-center space-x-1"
+                    title="Sort by Box Number">
                     <span>Box #</span>
                     <i id="pill-icon-box" class="fa-solid fa-sort text-[10px] text-slate-600"></i>
                   </button>
@@ -383,506 +1081,589 @@
               <table class="w-full text-left whitespace-nowrap">
                 <thead class="bg-navy-700 select-none">
                   <tr>
-                    <th id="th-col-box" onclick="setRunnerSort('box')" class="w-12 text-center cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Box Number">
+                    <th id="th-col-box" onclick="setRunnerSort('box')"
+                      class="w-12 text-center cursor-pointer hover:bg-navy-600 transition group"
+                      title="Click to sort by Box Number">
                       <div class="flex items-center justify-center space-x-1">
                         <span>#</span>
-                        <i id="th-sort-box" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                        <i id="th-sort-box"
+                          class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
                       </div>
                     </th>
-                    <th id="th-col-name" onclick="setRunnerSort('name')" class="cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Greyhound Name">
+                    <th id="th-col-name" onclick="setRunnerSort('name')"
+                      class="cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Greyhound Name">
                       <div class="flex items-center space-x-1">
                         <span>Greyhound</span>
-                        <i id="th-sort-name" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                        <i id="th-sort-name"
+                          class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
                       </div>
                     </th>
                     <th>Trainer</th>
-                    <th id="th-col-hype" onclick="setRunnerSort('hype')" class="text-right text-pink-400 cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Market Implied Win Probability % (1 / Odds)">
+                    <th id="th-col-hype" onclick="setRunnerSort('hype')"
+                      class="text-right text-pink-400 cursor-pointer hover:bg-navy-600 transition group"
+                      title="Click to sort by Market Implied Win Probability % (1 / Odds)">
                       <div class="flex items-center justify-end space-x-1">
                         <span>Hype %</span>
-                        <i id="th-sort-hype" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                        <i id="th-sort-hype"
+                          class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
                       </div>
                     </th>
-                    <th id="th-col-model_win" onclick="setRunnerSort('model_win')" class="text-right cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Model Win %">
+                    <th id="th-col-model_win" onclick="setRunnerSort('model_win')"
+                      class="text-right cursor-pointer hover:bg-navy-600 transition group"
+                      title="Click to sort by Model Win %">
                       <div class="flex items-center justify-end space-x-1">
                         <span>Model Win%</span>
-                        <i id="th-sort-model_win" class="fa-solid fa-arrow-down-wide-short text-[10px] text-accent-teal"></i>
+                        <i id="th-sort-model_win"
+                          class="fa-solid fa-arrow-down-wide-short text-[10px] text-accent-teal"></i>
                       </div>
                     </th>
                     <th class="text-right">Fair Odds</th>
-                    <th id="th-col-odds" onclick="setRunnerSort('odds')" class="text-right text-amber-400 cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Sportsbet Odds">
+                    <th id="th-col-odds" onclick="setRunnerSort('odds')"
+                      class="text-right text-amber-400 cursor-pointer hover:bg-navy-600 transition group"
+                      title="Click to sort by Sportsbet Odds">
                       <div class="flex items-center justify-end space-x-1">
                         <span>Sportsbet Win</span>
-                        <i id="th-sort-odds" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                        <i id="th-sort-odds"
+                          class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
                       </div>
                     </th>
                     <th id="th-col-sb-place" class="text-right text-amber-400">SB Place</th>
-                    <th class="text-right text-purple-400" title="TheDogs Official Starting Price (SP) / Fixed Odds">TheDogs SP</th>
-                    <th id="th-col-edge" onclick="setRunnerSort('edge')" class="text-right text-accent-green cursor-pointer hover:bg-navy-600 transition group" title="Click to sort by Sportsbet Edge">
+                    <th class="text-right text-purple-400" title="TheDogs Official Starting Price (SP) / Fixed Odds">
+                      TheDogs SP</th>
+                    <th id="th-col-edge" onclick="setRunnerSort('edge')"
+                      class="text-right text-accent-green cursor-pointer hover:bg-navy-600 transition group"
+                      title="Click to sort by Sportsbet Edge">
                       <div class="flex items-center justify-end space-x-1">
                         <span>SB Edge</span>
-                        <i id="th-sort-edge" class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
+                        <i id="th-sort-edge"
+                          class="fa-solid fa-sort text-[9px] text-slate-500 opacity-40 group-hover:opacity-100 transition"></i>
                       </div>
                     </th>
                   </tr>
                 </thead>
                 <tbody id="runners-tbody" class="bg-navy-600 divide-y divide-navy-500">
-                  <tr><td colspan="10" class="text-center text-slate-500 py-6 text-xs italic">Select a race from the sidebar to view predictive analytics</td></tr>
+                  <tr>
+                    <td colspan="10" class="text-center text-slate-500 py-6 text-xs italic">Select a race from the
+                      sidebar to view predictive analytics</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
-<!-- TAB 2: MULTI OPTIMIZER -->
-      <div id="view-multis" class="hidden space-y-4">
-        <!-- Multi Control Bar -->
-        <div class="card p-4 flex flex-wrap items-center justify-between gap-4">
-          <div class="flex flex-wrap items-center gap-4">
-            <div id="multi-context-pill" class="flex items-center space-x-2 bg-blue-950/70 border border-blue-700 px-3 py-1.5 rounded-lg text-xs">
-              <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
-              <span id="multi-context-text" class="font-semibold text-blue-200">Mode: Cross-Meeting Multis</span>
-            </div>
-            <div id="srm-toggle-container" class="hidden">
-              <button onclick="toggleSrmMode()" id="btn-toggle-srm" class="px-3 py-1.5 bg-navy-600 hover:bg-gray-700 text-slate-300 rounded text-xs font-semibold flex items-center space-x-1 border border-navy-500">
-                <i class="fa-solid fa-layer-group"></i>
-                <span id="btn-toggle-srm-text">Switch to Cross-Meeting</span>
-              </button>
-            </div>
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Odds Platform</label>
-              <select id="multi-platform-select" onchange="fetchMultis()" class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
-                <option value="sportsbet" selected>Sportsbet Fixed (Default)</option>
-                <option value="best">Best Available Price</option>
-                <option value="sp">TheDogs SP</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Min Total Odds</label>
-              <select id="multi-odds-select" onchange="fetchMultis()" class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
-                <option value="1.25">$1.25+</option>
-                <option value="3.0">$3.00+</option>
-                <option value="5.0" selected>$5.00+</option>
-                <option value="10.0">$10.00+</option>
-                <option value="25.0">$25.00+</option>
-                <option value="50.0">$50.00+</option>
-              </select>
-            </div>
-            <div id="srm-type-filter-container" class="hidden">
-              <label class="block text-xs text-slate-400 mb-1">SRM Type Filter</label>
-              <select id="srm-type-select" onchange="renderFilteredMultis()" class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
-                <option value="all" selected>All Combinations</option>
-                <option value="4-Leg Top 4 SRM">4-Leg Top 4 Boxed</option>
-                <option value="4-Leg Win+Top 4 Mix SRM">4-Leg Win + Top 4 Mix</option>
-                <option value="4-Leg Top 2/Top 4 Mix SRM">4-Leg Top 2 / Top 4 Mix</option>
-                <option value="3-Leg Trifecta SRM">3-Leg Trifecta</option>
-                <option value="2-Leg Exacta SRM">2-Leg Exacta</option>
-                <option value="2-Leg Top 4 SRM">2-Leg Top 4 (Safe Pair)</option>
-              </select>
-            </div>
-          </div>
-          <button onclick="fetchMultis()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold flex items-center space-x-2 transition shadow">
-            <i class="fa-solid fa-arrows-rotate"></i>
-            <span>Refresh Multis</span>
-          </button>
-        </div>
-
-        <!-- Multi Combinations Output Container -->
-        <div id="multis-container" class="space-y-4">
-          <div class="p-12 text-center card text-slate-500">
-            <i class="fa-solid fa-calculator text-4xl mb-3 text-gray-600"></i>
-            <p>Click "Refresh Multis" to discover +EV combinations.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 3: HISTORICAL BACKTEST & STRATEGY LAB -->
-      <div id="view-backtest" class="hidden space-y-4">
-        <!-- Backtest Controls Card -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between pb-3 border-b border-navy-500 mb-4">
-            <div class="flex items-center space-x-2">
-              <i class="fa-solid fa-flask text-cyan-400"></i>
-              <h3 class="text-sm font-bold uppercase tracking-wider text-white">Historical Backtest Simulator & Calibration</h3>
-            </div>
-            <span class="text-xs text-slate-400 font-mono">261 Verified Completed Races in DB</span>
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
-            <div>
-              <label class="block text-slate-400 mb-1">Min Edge (+EV)</label>
-              <select id="bt-min-edge" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
-                <option value="0.02">+2% Edge</option>
-                <option value="0.03" selected>+3% Edge</option>
-                <option value="0.05">+5% Edge</option>
-                <option value="0.08">+8% Edge</option>
-                <option value="0.10">+10% Edge</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-slate-400 mb-1">Min Odds</label>
-              <input type="number" id="bt-min-odds" value="1.50" step="0.1" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-slate-400 mb-1">Max Odds</label>
-              <input type="number" id="bt-max-odds" value="20.0" step="1.0" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-slate-400 mb-1">Staking Plan</label>
-              <select id="bt-staking" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
-                <option value="flat" selected>Flat ($10)</option>
-                <option value="kelly">0.25x Kelly</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-slate-400 mb-1">Odds Feed</label>
-              <select id="bt-odds-source" class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
-                <option value="best" selected>Best Market Price</option>
-                <option value="sportsbet">Sportsbet Fixed</option>
-                <option value="sp">TheDogs SP</option>
-              </select>
-            </div>
-            <div class="flex items-end space-x-1.5">
-              <button onclick="runBacktest()" id="btn-run-backtest" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1.5 px-3 rounded shadow transition flex items-center justify-center space-x-1">
-                <i class="fa-solid fa-play text-[10px]"></i>
-                <span>Simulate</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Backtest Metrics Dashboard Cards -->
-        <div id="bt-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          <div class="card p-3 text-center">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Bets</span>
-            <div id="bt-stat-bets" class="text-xl font-bold font-mono text-white mt-0.5">-</div>
-            <span id="bt-stat-races" class="text-[10px] text-slate-500">Across - races</span>
-          </div>
-          <div class="card p-3 text-center">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold">Strike Rate</span>
-            <div id="bt-stat-sr" class="text-xl font-bold font-mono text-cyan-400 mt-0.5">-%</div>
-            <span id="bt-stat-wins" class="text-[10px] text-slate-500">- wins / - losses</span>
-          </div>
-          <div class="card p-3 text-center">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold">Net Profit</span>
-            <div id="bt-stat-pnl" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">$-</div>
-            <span id="bt-stat-staked" class="text-[10px] text-slate-500">Staked: $-</span>
-          </div>
-          <div class="card p-3 text-center">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold">ROI / Yield</span>
-            <div id="bt-stat-roi" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">-%</div>
-            <span class="text-[10px] text-slate-500">Return on Turnover</span>
-          </div>
-          <div class="card p-3 text-center">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold">Max Drawdown</span>
-            <div id="bt-stat-dd" class="text-xl font-bold font-mono text-amber-400 mt-0.5">-%</div>
-            <span id="bt-stat-dd-dollars" class="text-[10px] text-slate-500">Peak drop: $-</span>
-          </div>
-          <div class="card p-3 text-center">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold">Brier Score</span>
-            <div id="bt-stat-brier" class="text-xl font-bold font-mono text-blue-400 mt-0.5">-</div>
-            <span class="text-[10px] text-slate-500">Model Calibration</span>
-          </div>
-        </div>
-
-        <!-- Simulated Bets Ledger Table -->
-        <div class="card overflow-hidden">
-          <div class="p-3 card-header flex items-center justify-between">
-            <h4 class="text-xs font-semibold text-white uppercase tracking-wider flex items-center space-x-1.5">
-              <i class="fa-solid fa-list-check text-emerald-400"></i>
-              <span>Simulated Qualifying Bets Ledger (Recent Sample)</span>
-            </h4>
-            <span class="text-[11px] text-slate-400">Historical Ground Truth</span>
-          </div>
-          <div class="overflow-x-auto max-h-72 overflow-y-auto">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
-                <tr>
-                  <th class="p-2.5 w-16">Result</th>
-                  <th class="p-2.5">Date & Meeting</th>
-                  <th class="p-2.5 w-10 text-center">Box</th>
-                  <th class="p-2.5">Greyhound</th>
-                  <th class="p-2.5 text-right">Odds</th>
-                  <th class="p-2.5 text-right">Model Win%</th>
-                  <th class="p-2.5 text-right">Edge</th>
-                  <th class="p-2.5 text-right">Stake</th>
-                  <th class="p-2.5 text-right">Profit / Loss</th>
-                  <th class="p-2.5 text-right">Bankroll</th>
-                </tr>
-              </thead>
-              <tbody id="bt-bets-tbody" class="divide-y divide-[#30363d]">
-                <tr>
-                  <td colspan="10" class="p-8 text-center text-slate-500">Click "Simulate" to run backtest against historical races.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 4: DAILY LEARNING & CONTINUOUS AUDIT -->
-      <div id="view-learning" class="hidden space-y-4">
-        <!-- Control Bar -->
-        <div class="card p-5">
-          <div class="flex flex-wrap items-center justify-between pb-3 border-b border-navy-500 mb-4 gap-3">
-            <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 rounded-lg bg-purple-950/80 border border-purple-600 flex items-center justify-center text-purple-400 text-sm shadow">
-                <i class="fa-solid fa-brain"></i>
+        <!-- TAB 2: MULTI OPTIMIZER -->
+        <div id="view-multis" class="hidden space-y-4">
+          <!-- Multi Control Bar -->
+          <div class="card p-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-4">
+              <div id="multi-context-pill"
+                class="flex items-center space-x-2 bg-blue-950/70 border border-blue-700 px-3 py-1.5 rounded-lg text-xs">
+                <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+                <span id="multi-context-text" class="font-semibold text-blue-200">Mode: Cross-Meeting Multis</span>
+              </div>
+              <div id="srm-toggle-container" class="hidden">
+                <button onclick="toggleSrmMode()" id="btn-toggle-srm"
+                  class="px-3 py-1.5 bg-navy-600 hover:bg-gray-700 text-slate-300 rounded text-xs font-semibold flex items-center space-x-1 border border-navy-500">
+                  <i class="fa-solid fa-layer-group"></i>
+                  <span id="btn-toggle-srm-text">Switch to Cross-Meeting</span>
+                </button>
               </div>
               <div>
-                <h3 class="text-sm font-bold uppercase tracking-wider text-white">Daily Learning & Continuous Calibration Engine</h3>
-                <p class="text-[11px] text-slate-400">Audits today's model predictions against official race results, tracks First 4 & SRM hits, and applies machine calibration.</p>
-              </div>
-            </div>
-            <div class="flex flex-wrap items-center gap-2.5">
-              <div class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
-                <i class="fa-solid fa-calendar-day text-purple-400"></i>
-                <label class="text-slate-400">Date:</label>
-                <input type="date" id="learning-date-input" onchange="runLearningAudit()" class="bg-transparent text-white font-bold focus:outline-none cursor-pointer">
-              </div>
-
-              <!-- Location / Track Filter -->
-              <div class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
-                <i class="fa-solid fa-location-dot text-cyan-400"></i>
-                <label class="text-slate-400">Location:</label>
-                <select id="first4-track-filter" onchange="runLearningAudit()" class="bg-navy-700 text-white font-bold focus:outline-none cursor-pointer rounded px-2 py-0.5 border border-navy-500">
-                  <option value="">All Locations</option>
+                <label class="block text-xs text-slate-400 mb-1">Odds Platform</label>
+                <select id="multi-platform-select" onchange="fetchMultis()"
+                  class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
+                  <option value="sportsbet" selected>Sportsbet Fixed (Default)</option>
+                  <option value="best">Best Available Price</option>
+                  <option value="sp">TheDogs SP</option>
                 </select>
               </div>
-
-              <!-- Distance Filter -->
-              <div class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
-                <i class="fa-solid fa-ruler-horizontal text-emerald-400"></i>
-                <label class="text-slate-400">Distance:</label>
-                <select id="first4-dist-filter" onchange="runLearningAudit()" class="bg-navy-700 text-white font-bold focus:outline-none cursor-pointer rounded px-2 py-0.5 border border-navy-500">
-                  <option value="">All Distances</option>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Min Total Odds</label>
+                <select id="multi-odds-select" onchange="fetchMultis()"
+                  class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
+                  <option value="1.25">$1.25+</option>
+                  <option value="3.0">$3.00+</option>
+                  <option value="5.0" selected>$5.00+</option>
+                  <option value="10.0">$10.00+</option>
+                  <option value="25.0">$25.00+</option>
+                  <option value="50.0">$50.00+</option>
                 </select>
               </div>
-
-              <!-- Current Race Locations Only Filter Toggle -->
-              <button type="button" id="btn-toggle-current-locations" onclick="toggleCurrentLocationsFilter()" class="flex items-center space-x-2 bg-navy-600 hover:bg-navy-500 border border-navy-500 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition cursor-pointer" title="Only display track performance from current race locations where races are still happening today">
-                <span id="current-tracks-indicator" class="w-2 h-2 rounded-full bg-slate-400"></span>
-                <span id="current-tracks-btn-text">Current Locations Only</span>
-              </button>
-
-              <button onclick="runLearningAudit()" id="btn-run-learning" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs font-bold flex items-center space-x-2 transition shadow">
-                <i class="fa-solid fa-rotate text-[10px]"></i>
-                <span>Refresh Audit</span>
-              </button>
+              <div id="srm-type-filter-container" class="hidden">
+                <label class="block text-xs text-slate-400 mb-1">SRM Type Filter</label>
+                <select id="srm-type-select" onchange="renderFilteredMultis()"
+                  class="bg-navy-600 border border-navy-500 text-white text-xs rounded px-2.5 py-1.5 focus:outline-none">
+                  <option value="all" selected>All Combinations</option>
+                  <option value="4-Leg Top 4 SRM">4-Leg Top 4 Boxed</option>
+                  <option value="4-Leg Win+Top 4 Mix SRM">4-Leg Win + Top 4 Mix</option>
+                  <option value="4-Leg Top 2/Top 4 Mix SRM">4-Leg Top 2 / Top 4 Mix</option>
+                  <option value="3-Leg Trifecta SRM">3-Leg Trifecta</option>
+                  <option value="2-Leg Exacta SRM">2-Leg Exacta</option>
+                  <option value="2-Leg Top 4 SRM">2-Leg Top 4 (Safe Pair)</option>
+                </select>
+              </div>
             </div>
+            <button onclick="fetchMultis()"
+              class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold flex items-center space-x-2 transition shadow">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span>Refresh Multis</span>
+            </button>
           </div>
 
-          <!-- Top Metric Cards Grid (Responsive Multi-Tier Performance Grid) -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 text-center">
-            <div class="bg-navy-600 p-2.5 rounded border border-navy-500">
-              <span class="block text-slate-400 text-[10px] uppercase font-bold">Races Audited</span>
-              <span id="learn-total-races" class="text-base font-bold text-white font-mono">--</span>
-              <span id="learn-filter-label" class="text-[9px] text-slate-400 block truncate">All Tracks</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-emerald-900/60 bg-emerald-950/20">
-              <span class="block text-emerald-400 text-[10px] uppercase font-bold">Top-1 Win</span>
-              <span id="learn-top1-rate" class="text-base font-bold text-emerald-300 font-mono">--%</span>
-              <span id="learn-top1-count" class="text-[10px] text-slate-400 block">--/--</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-cyan-900/60 bg-cyan-950/20">
-              <span class="block text-cyan-400 text-[10px] uppercase font-bold">Winner in Top 4</span>
-              <span id="learn-top4-rate" class="text-base font-bold text-cyan-300 font-mono">--%</span>
-              <span id="learn-top4-count" class="text-[10px] text-slate-400 block">--/--</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-amber-900/60 bg-amber-950/20">
-              <span class="block text-amber-400 text-[10px] uppercase font-bold">3+ in 4 (SRM)</span>
-              <span id="learn-srm-rate" class="text-base font-bold text-amber-300 font-mono">--%</span>
-              <span id="learn-srm-count" class="text-[10px] text-slate-400 block">--/--</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-yellow-900/60 bg-yellow-950/20">
-              <span class="block text-yellow-400 text-[10px] uppercase font-bold">Tier 1: 4-Dog F4</span>
-              <span id="learn-f4-rate" class="text-base font-bold text-yellow-300 font-mono">--%</span>
-              <span id="learn-f4-count" class="text-[10px] text-slate-400 block">24 combos</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-cyan-700/60 bg-cyan-950/30">
-              <span class="block text-cyan-300 text-[10px] uppercase font-bold">Tier 2: 5-Dog F4</span>
-              <span id="learn-f5-rate" class="text-base font-bold text-cyan-200 font-mono">--%</span>
-              <span id="learn-f5-count" class="text-[10px] text-slate-400 block">120 combos</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-purple-600/70 bg-purple-950/40 ring-1 ring-purple-500/50">
-              <span class="block text-purple-300 text-[10px] uppercase font-bold">Tier 3: 6-Dog F4</span>
-              <span id="learn-f6-rate" class="text-base font-bold text-purple-200 font-mono">--%</span>
-              <span id="learn-f6-count" class="text-[10px] text-purple-300 font-bold block">360 combos (Target)</span>
-            </div>
-            <div class="bg-navy-600 p-2.5 rounded border border-orange-700/60 bg-orange-950/20">
-              <span class="block text-orange-400 text-[10px] uppercase font-bold">Key Standout</span>
-              <span id="learn-standout-rate" class="text-base font-bold text-orange-300 font-mono">--%</span>
-              <span id="learn-standout-count" class="text-[10px] text-slate-400 block">24 combos</span>
+          <!-- Multi Combinations Output Container -->
+          <div id="multis-container" class="space-y-4">
+            <div class="p-12 text-center card text-slate-500">
+              <i class="fa-solid fa-calculator text-4xl mb-3 text-gray-600"></i>
+              <p>Click "Refresh Multis" to discover +EV combinations.</p>
             </div>
           </div>
         </div>
 
-        <!-- Learning & Calibration Insights Card -->
-        <div class="card p-4 border-l-4 border-purple-500 bg-gradient-to-r from-[#161b22] to-[#1e172a]">
-          <div class="flex items-center space-x-2 mb-2">
-            <i class="fa-solid fa-microchip text-purple-400 text-sm"></i>
-            <h4 class="text-xs font-bold uppercase tracking-wider text-white">Active Machine Calibrations & Track Biases</h4>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
-              <span class="font-bold text-purple-300 block mb-0.5"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>The Meadows 525m Rail Parity</span>
-              <p class="text-slate-400 text-[11px]">Calibrated temperature 2.50. Box 1 rail supremacy (1.20) & Box 8 wide swoop (1.12); middle box 65m squeeze protection active.</p>
-            </div>
-            <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
-              <span class="font-bold text-purple-300 block mb-0.5"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>The Gardens 400m / 515m / 600m</span>
-              <p class="text-slate-400 text-[11px]">600m chute squeeze penalty applied to Box 1 (0.85 x 0.82) with wide swooper bonus on Boxes 6, 7, 8 (1.12 x 1.08).</p>
-            </div>
-            <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
-              <span class="font-bold text-purple-300 block mb-0.5"><i class="fa-solid fa-check text-emerald-400 mr-1"></i>Q1 Lakeside, Bendigo & Cannington</span>
-              <p class="text-slate-400 text-[11px]">Bendigo 75.0% 6-dog hit rate; Cannington 77.8% 5/6-dog hit rate with exact 2-1-8-7 First 4; Q1 Lakeside 72.7% hit rate.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Track & Distance Breakdown Tables -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <!-- Track Performance (2 cols) -->
-          <div class="lg:col-span-2 card overflow-hidden">
-            <div class="p-3.5 card-header flex flex-wrap items-center justify-between gap-2">
+        <!-- TAB 3: HISTORICAL BACKTEST & STRATEGY LAB -->
+        <div id="view-backtest" class="hidden space-y-4">
+          <!-- Backtest Controls Card -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between pb-3 border-b border-navy-500 mb-4">
               <div class="flex items-center space-x-2">
-                <h4 class="text-xs font-bold uppercase tracking-wider text-white">Track Performance Breakdown</h4>
-                <span id="track-filter-status-badge" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-500/50">
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1"></span>Current Locations
-                </span>
+                <i class="fa-solid fa-flask text-cyan-400"></i>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-white">Historical Backtest Simulator &
+                  Calibration</h3>
               </div>
-              <div class="flex items-center space-x-1.5 text-xs">
-                <button type="button" id="btn-track-filter-all" onclick="setTrackViewMode('all')" class="px-2.5 py-1 rounded text-[11px] font-bold bg-purple-600 text-white shadow transition">
-                  All Locations (<span id="track-count-all">0</span>)
-                </button>
-                <button type="button" id="btn-track-filter-current" onclick="setTrackViewMode('current')" class="px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white bg-navy-600 hover:bg-navy-500 border border-navy-500 transition flex items-center space-x-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Current Locations (<span id="track-count-current">0</span>)</span>
-                </button>
-              </div>
+              <span class="text-xs text-slate-400 font-mono">261 Verified Completed Races in DB</span>
             </div>
-            <div class="overflow-x-auto max-h-[380px]">
-              <table class="w-full text-left text-xs border-collapse">
-                <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
-                  <tr>
-                    <th class="p-2.5">Track Location</th>
-                    <th class="p-2.5 text-center">Races</th>
-                    <th class="p-2.5 text-right font-bold text-emerald-400">Top-1 Win %</th>
-                    <th class="p-2.5 text-right text-amber-400">3+ in 4</th>
-                    <th class="p-2.5 text-right text-yellow-300">4-Dog F4%</th>
-                    <th class="p-2.5 text-right text-cyan-300">5-Dog F4%</th>
-                    <th class="p-2.5 text-right font-bold text-purple-300">6-Dog F4%</th>
-                  </tr>
-                </thead>
-                <tbody id="learning-tracks-tbody" class="divide-y divide-[#30363d]">
-                  <tr><td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td></tr>
-                </tbody>
-              </table>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+              <div>
+                <label class="block text-slate-400 mb-1">Min Edge (+EV)</label>
+                <select id="bt-min-edge"
+                  class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+                  <option value="0.02">+2% Edge</option>
+                  <option value="0.03" selected>+3% Edge</option>
+                  <option value="0.05">+5% Edge</option>
+                  <option value="0.08">+8% Edge</option>
+                  <option value="0.10">+10% Edge</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Min Odds</label>
+                <input type="number" id="bt-min-odds" value="1.50" step="0.1"
+                  class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Max Odds</label>
+                <input type="number" id="bt-max-odds" value="20.0" step="1.0"
+                  class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Staking Plan</label>
+                <select id="bt-staking"
+                  class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+                  <option value="flat" selected>Flat ($10)</option>
+                  <option value="kelly">0.25x Kelly</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1">Odds Feed</label>
+                <select id="bt-odds-source"
+                  class="w-full bg-navy-600 border border-navy-500 text-white rounded p-1.5 focus:outline-none">
+                  <option value="best" selected>Best Market Price</option>
+                  <option value="sportsbet">Sportsbet Fixed</option>
+                  <option value="sp">TheDogs SP</option>
+                </select>
+              </div>
+              <div class="flex items-end space-x-1.5">
+                <button onclick="runBacktest()" id="btn-run-backtest"
+                  class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1.5 px-3 rounded shadow transition flex items-center justify-center space-x-1">
+                  <i class="fa-solid fa-play text-[10px]"></i>
+                  <span>Simulate</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- Distance Breakdown (1 col) -->
+          <!-- Backtest Metrics Dashboard Cards -->
+          <div id="bt-results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <div class="card p-3 text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Total Bets</span>
+              <div id="bt-stat-bets" class="text-xl font-bold font-mono text-white mt-0.5">-</div>
+              <span id="bt-stat-races" class="text-[10px] text-slate-500">Across - races</span>
+            </div>
+            <div class="card p-3 text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Strike Rate</span>
+              <div id="bt-stat-sr" class="text-xl font-bold font-mono text-cyan-400 mt-0.5">-%</div>
+              <span id="bt-stat-wins" class="text-[10px] text-slate-500">- wins / - losses</span>
+            </div>
+            <div class="card p-3 text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Net Profit</span>
+              <div id="bt-stat-pnl" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">$-</div>
+              <span id="bt-stat-staked" class="text-[10px] text-slate-500">Staked: $-</span>
+            </div>
+            <div class="card p-3 text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">ROI / Yield</span>
+              <div id="bt-stat-roi" class="text-xl font-bold font-mono text-emerald-400 mt-0.5">-%</div>
+              <span class="text-[10px] text-slate-500">Return on Turnover</span>
+            </div>
+            <div class="card p-3 text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Max Drawdown</span>
+              <div id="bt-stat-dd" class="text-xl font-bold font-mono text-amber-400 mt-0.5">-%</div>
+              <span id="bt-stat-dd-dollars" class="text-[10px] text-slate-500">Peak drop: $-</span>
+            </div>
+            <div class="card p-3 text-center">
+              <span class="text-[10px] text-slate-400 uppercase font-semibold">Brier Score</span>
+              <div id="bt-stat-brier" class="text-xl font-bold font-mono text-blue-400 mt-0.5">-</div>
+              <span class="text-[10px] text-slate-500">Model Calibration</span>
+            </div>
+          </div>
+
+          <!-- Simulated Bets Ledger Table -->
           <div class="card overflow-hidden">
-            <div class="p-3.5 card-header flex items-center justify-between">
-              <h4 class="text-xs font-bold uppercase tracking-wider text-white">Distance Breakdown</h4>
-              <span class="text-[11px] text-slate-400">Race Distance Hit Rates</span>
+            <div class="p-3 card-header flex items-center justify-between">
+              <h4 class="text-xs font-semibold text-white uppercase tracking-wider flex items-center space-x-1.5">
+                <i class="fa-solid fa-list-check text-emerald-400"></i>
+                <span>Simulated Qualifying Bets Ledger (Recent Sample)</span>
+              </h4>
+              <span class="text-[11px] text-slate-400">Historical Ground Truth</span>
             </div>
-            <div class="overflow-x-auto max-h-[380px]">
+            <div class="overflow-x-auto max-h-72 overflow-y-auto">
               <table class="w-full text-left text-xs border-collapse">
                 <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
                   <tr>
-                    <th class="p-2.5">Distance</th>
-                    <th class="p-2.5 text-center">Races</th>
-                    <th class="p-2.5 text-right font-bold text-emerald-400">Top-1%</th>
-                    <th class="p-2.5 text-right text-amber-400">3+ in 4</th>
-                    <th class="p-2.5 text-right text-yellow-300">4-Dog%</th>
-                    <th class="p-2.5 text-right text-cyan-300">5-Dog%</th>
-                    <th class="p-2.5 text-right font-bold text-purple-300">6-Dog%</th>
+                    <th class="p-2.5 w-16">Result</th>
+                    <th class="p-2.5">Date & Meeting</th>
+                    <th class="p-2.5 w-10 text-center">Box</th>
+                    <th class="p-2.5">Greyhound</th>
+                    <th class="p-2.5 text-right">Odds</th>
+                    <th class="p-2.5 text-right">Model Win%</th>
+                    <th class="p-2.5 text-right">Edge</th>
+                    <th class="p-2.5 text-right">Stake</th>
+                    <th class="p-2.5 text-right">Profit / Loss</th>
+                    <th class="p-2.5 text-right">Bankroll</th>
                   </tr>
                 </thead>
-                <tbody id="learning-dist-tbody" class="divide-y divide-[#30363d]">
-                  <tr><td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td></tr>
+                <tbody id="bt-bets-tbody" class="divide-y divide-[#30363d]">
+                  <tr>
+                    <td colspan="10" class="p-8 text-center text-slate-500">Click "Simulate" to run backtest against
+                      historical races.</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
 
-        <!-- Race-by-Race First 4 Audit Detail Card -->
-        <div class="card overflow-hidden">
-          <div class="p-3.5 card-header flex flex-wrap items-center justify-between gap-2.5">
-            <div class="flex items-center space-x-2">
-              <i class="fa-solid fa-list-check text-purple-400"></i>
-              <h4 class="text-xs font-bold uppercase tracking-wider text-white">First 4 Race-by-Race Hit Audit (Predicted vs Actual)</h4>
-            </div>
-            <!-- Ticket Tier Filter Pills -->
-            <div class="flex items-center space-x-1.5 bg-navy-700 border border-navy-500 p-1 rounded-lg text-xs">
-              <span class="text-[10px] font-bold text-slate-400 uppercase px-1.5">View Filter:</span>
-              <button onclick="setAuditTierFilter('all')" id="audit-tier-btn-all" class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-600 text-white transition">All</button>
-              <button onclick="setAuditTierFilter('6dog')" id="audit-tier-btn-6dog" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">6-Dog (Target)</button>
-              <button onclick="setAuditTierFilter('5dog')" id="audit-tier-btn-5dog" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">5-Dog</button>
-              <button onclick="setAuditTierFilter('4dog')" id="audit-tier-btn-4dog" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">4-Dog</button>
-              <button onclick="setAuditTierFilter('standout')" id="audit-tier-btn-standout" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">Standout</button>
-            </div>
-            <div class="flex items-center space-x-3 text-[11px] text-slate-400">
-              <span id="first4-races-count" class="font-mono text-purple-300 font-bold">-- races</span>
-              <span>• Real-time model audit</span>
-            </div>
-          </div>
-          <div class="overflow-x-auto max-h-[520px]">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
-                <tr>
-                  <th class="p-2.5 cursor-pointer hover:text-white transition select-none group" onclick="toggleAuditSort('race_time')" title="Click to sort by Race & Time">
-                    <div class="flex items-center space-x-1.5">
-                      <span class="group-hover:text-purple-300 transition">Race & Time</span>
-                      <i id="sort-icon-race_time" class="fa-solid fa-arrow-down-short-wide text-[11px] text-purple-400"></i>
-                    </div>
-                  </th>
-                  <th class="p-2.5 text-center cursor-pointer hover:text-white transition select-none group" onclick="toggleAuditSort('dist')" title="Click to sort by Distance">
-                    <div class="flex items-center justify-center space-x-1.5">
-                      <span class="group-hover:text-purple-300 transition">Dist / Grade</span>
-                      <i id="sort-icon-dist" class="fa-solid fa-sort text-[10px] text-slate-500"></i>
-                    </div>
-                  </th>
-                  <th class="p-2.5">Predicted Selections</th>
-                  <th class="p-2.5">Actual Official Top 4 (1st - 4th)</th>
-                  <th class="p-2.5 text-center cursor-pointer hover:text-white transition select-none group" onclick="toggleAuditSort('overlap')" title="Click to sort by Overlap">
-                    <div class="flex items-center justify-center space-x-1.5">
-                      <span class="group-hover:text-purple-300 transition">Overlap</span>
-                      <i id="sort-icon-overlap" class="fa-solid fa-sort text-[10px] text-slate-500"></i>
-                    </div>
-                  </th>
-                  <th class="p-2.5 text-right">Hit Badges</th>
-                </tr>
-              </thead>
-              <tbody id="first4-races-tbody" class="divide-y divide-[#30363d]">
-                <tr><td colspan="6" class="p-6 text-center text-slate-500">Loading First 4 audit...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <!-- TAB 4: DAILY LEARNING & CONTINUOUS AUDIT -->
+        <div id="view-learning" class="hidden space-y-4">
+          <!-- Control Bar -->
+          <div class="card p-5">
+            <div class="flex flex-wrap items-center justify-between pb-3 border-b border-navy-500 mb-4 gap-3">
+              <div class="flex items-center space-x-3">
+                <div
+                  class="w-8 h-8 rounded-lg bg-purple-950/80 border border-purple-600 flex items-center justify-center text-purple-400 text-sm shadow">
+                  <i class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-wider text-white">Daily Learning & Continuous
+                    Calibration Engine</h3>
+                  <p class="text-[11px] text-slate-400">Audits today's model predictions against official race results,
+                    tracks First 4 & SRM hits, and applies machine calibration.</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <div
+                  class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
+                  <i class="fa-solid fa-calendar-day text-purple-400"></i>
+                  <label class="text-slate-400">Date:</label>
+                  <input type="date" id="learning-date-input" onchange="runLearningAudit()"
+                    class="bg-transparent text-white font-bold focus:outline-none cursor-pointer">
+                </div>
 
-      </div>
+                <!-- Location / Track Filter -->
+                <div
+                  class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
+                  <i class="fa-solid fa-location-dot text-cyan-400"></i>
+                  <label class="text-slate-400">Location:</label>
+                  <select id="first4-track-filter" onchange="runLearningAudit()"
+                    class="bg-navy-700 text-white font-bold focus:outline-none cursor-pointer rounded px-2 py-0.5 border border-navy-500">
+                    <option value="">All Locations</option>
+                  </select>
+                </div>
+
+                <!-- Distance Filter -->
+                <div
+                  class="flex items-center space-x-2 bg-navy-600 border border-navy-500 px-3 py-1.5 rounded-lg text-xs">
+                  <i class="fa-solid fa-ruler-horizontal text-emerald-400"></i>
+                  <label class="text-slate-400">Distance:</label>
+                  <select id="first4-dist-filter" onchange="runLearningAudit()"
+                    class="bg-navy-700 text-white font-bold focus:outline-none cursor-pointer rounded px-2 py-0.5 border border-navy-500">
+                    <option value="">All Distances</option>
+                  </select>
+                </div>
+
+                <!-- Current Race Locations Only Filter Toggle -->
+                <button type="button" id="btn-toggle-current-locations" onclick="toggleCurrentLocationsFilter()"
+                  class="flex items-center space-x-2 bg-navy-600 hover:bg-navy-500 border border-navy-500 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition cursor-pointer"
+                  title="Only display track performance from current race locations where races are still happening today">
+                  <span id="current-tracks-indicator" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                  <span id="current-tracks-btn-text">Current Locations Only</span>
+                </button>
+
+                <button onclick="runLearningAudit()" id="btn-run-learning"
+                  class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs font-bold flex items-center space-x-2 transition shadow">
+                  <i class="fa-solid fa-rotate text-[10px]"></i>
+                  <span>Refresh Audit</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Top Metric Cards Grid (Responsive Multi-Tier Performance Grid) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 text-center">
+              <div class="bg-navy-600 p-2.5 rounded border border-navy-500">
+                <span class="block text-slate-400 text-[10px] uppercase font-bold">Races Audited</span>
+                <span id="learn-total-races" class="text-base font-bold text-white font-mono">--</span>
+                <span id="learn-filter-label" class="text-[9px] text-slate-400 block truncate">All Tracks</span>
+              </div>
+              <div class="bg-navy-600 p-2.5 rounded border border-emerald-900/60 bg-emerald-950/20">
+                <span class="block text-emerald-400 text-[10px] uppercase font-bold">Top-1 Win</span>
+                <span id="learn-top1-rate" class="text-base font-bold text-emerald-300 font-mono">--%</span>
+                <span id="learn-top1-count" class="text-[10px] text-slate-400 block">--/--</span>
+              </div>
+              <div class="bg-navy-600 p-2.5 rounded border border-cyan-900/60 bg-cyan-950/20">
+                <span class="block text-cyan-400 text-[10px] uppercase font-bold">Winner in Top 4</span>
+                <span id="learn-top4-rate" class="text-base font-bold text-cyan-300 font-mono">--%</span>
+                <span id="learn-top4-count" class="text-[10px] text-slate-400 block">--/--</span>
+              </div>
+              <div class="bg-navy-600 p-2.5 rounded border border-amber-900/60 bg-amber-950/20">
+                <span class="block text-amber-400 text-[10px] uppercase font-bold">3+ in 4 (SRM)</span>
+                <span id="learn-srm-rate" class="text-base font-bold text-amber-300 font-mono">--%</span>
+                <span id="learn-srm-count" class="text-[10px] text-slate-400 block">--/--</span>
+              </div>
+              <div class="bg-navy-600 p-2.5 rounded border border-yellow-900/60 bg-yellow-950/20">
+                <span class="block text-yellow-400 text-[10px] uppercase font-bold">Tier 1: 4-Dog F4</span>
+                <span id="learn-f4-rate" class="text-base font-bold text-yellow-300 font-mono">--%</span>
+                <span id="learn-f4-count" class="text-[10px] text-slate-400 block">24 combos</span>
+              </div>
+              <div class="bg-navy-600 p-2.5 rounded border border-cyan-700/60 bg-cyan-950/30">
+                <span class="block text-cyan-300 text-[10px] uppercase font-bold">Tier 2: 5-Dog F4</span>
+                <span id="learn-f5-rate" class="text-base font-bold text-cyan-200 font-mono">--%</span>
+                <span id="learn-f5-count" class="text-[10px] text-slate-400 block">120 combos</span>
+              </div>
+              <div
+                class="bg-navy-600 p-2.5 rounded border border-purple-600/70 bg-purple-950/40 ring-1 ring-purple-500/50">
+                <span class="block text-purple-300 text-[10px] uppercase font-bold">Tier 3: 6-Dog F4</span>
+                <span id="learn-f6-rate" class="text-base font-bold text-purple-200 font-mono">--%</span>
+                <span id="learn-f6-count" class="text-[10px] text-purple-300 font-bold block">360 combos (Target)</span>
+              </div>
+              <div class="bg-navy-600 p-2.5 rounded border border-orange-700/60 bg-orange-950/20">
+                <span class="block text-orange-400 text-[10px] uppercase font-bold">Key Standout</span>
+                <span id="learn-standout-rate" class="text-base font-bold text-orange-300 font-mono">--%</span>
+                <span id="learn-standout-count" class="text-[10px] text-slate-400 block">24 combos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Learning & Calibration Insights Card -->
+          <div class="card p-4 border-l-4 border-purple-500 bg-gradient-to-r from-[#161b22] to-[#1e172a]">
+            <div class="flex items-center space-x-2 mb-2">
+              <i class="fa-solid fa-microchip text-purple-400 text-sm"></i>
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white">Active Machine Calibrations & Track
+                Biases</h4>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
+                <span class="font-bold text-purple-300 block mb-0.5"><i
+                    class="fa-solid fa-check text-emerald-400 mr-1"></i>The Meadows 525m Rail Parity</span>
+                <p class="text-slate-400 text-[11px]">Calibrated temperature 2.50. Box 1 rail supremacy (1.20) & Box 8
+                  wide swoop (1.12); middle box 65m squeeze protection active.</p>
+              </div>
+              <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
+                <span class="font-bold text-purple-300 block mb-0.5"><i
+                    class="fa-solid fa-check text-emerald-400 mr-1"></i>The Gardens 400m / 515m / 600m</span>
+                <p class="text-slate-400 text-[11px]">600m chute squeeze penalty applied to Box 1 (0.85 x 0.82) with
+                  wide swooper bonus on Boxes 6, 7, 8 (1.12 x 1.08).</p>
+              </div>
+              <div class="bg-[#0d1117]/80 p-2.5 rounded border border-navy-500">
+                <span class="font-bold text-purple-300 block mb-0.5"><i
+                    class="fa-solid fa-check text-emerald-400 mr-1"></i>Q1 Lakeside, Bendigo & Cannington</span>
+                <p class="text-slate-400 text-[11px]">Bendigo 75.0% 6-dog hit rate; Cannington 77.8% 5/6-dog hit rate
+                  with exact 2-1-8-7 First 4; Q1 Lakeside 72.7% hit rate.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Track & Distance Breakdown Tables -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Track Performance (2 cols) -->
+            <div class="lg:col-span-2 card overflow-hidden">
+              <div class="p-3.5 card-header flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center space-x-2">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-white">Track Performance Breakdown</h4>
+                  <span id="track-filter-status-badge"
+                    class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-500/50">
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1"></span>Current
+                    Locations
+                  </span>
+                </div>
+                <div class="flex items-center space-x-1.5 text-xs">
+                  <button type="button" id="btn-track-filter-all" onclick="setTrackViewMode('all')"
+                    class="px-2.5 py-1 rounded text-[11px] font-bold bg-purple-600 text-white shadow transition">
+                    All Locations (<span id="track-count-all">0</span>)
+                  </button>
+                  <button type="button" id="btn-track-filter-current" onclick="setTrackViewMode('current')"
+                    class="px-2.5 py-1 rounded text-[11px] font-bold text-slate-400 hover:text-white bg-navy-600 hover:bg-navy-500 border border-navy-500 transition flex items-center space-x-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Current Locations (<span id="track-count-current">0</span>)</span>
+                  </button>
+                </div>
+              </div>
+              <div class="overflow-x-auto max-h-[380px]">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                    <tr>
+                      <th class="p-2.5">Track Location</th>
+                      <th class="p-2.5 text-center">Races</th>
+                      <th class="p-2.5 text-right font-bold text-emerald-400">Top-1 Win %</th>
+                      <th class="p-2.5 text-right text-amber-400">3+ in 4</th>
+                      <th class="p-2.5 text-right text-yellow-300">4-Dog F4%</th>
+                      <th class="p-2.5 text-right text-cyan-300">5-Dog F4%</th>
+                      <th class="p-2.5 text-right font-bold text-purple-300">6-Dog F4%</th>
+                    </tr>
+                  </thead>
+                  <tbody id="learning-tracks-tbody" class="divide-y divide-[#30363d]">
+                    <tr>
+                      <td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Distance Breakdown (1 col) -->
+            <div class="card overflow-hidden">
+              <div class="p-3.5 card-header flex items-center justify-between">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-white">Distance Breakdown</h4>
+                <span class="text-[11px] text-slate-400">Race Distance Hit Rates</span>
+              </div>
+              <div class="overflow-x-auto max-h-[380px]">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                    <tr>
+                      <th class="p-2.5">Distance</th>
+                      <th class="p-2.5 text-center">Races</th>
+                      <th class="p-2.5 text-right font-bold text-emerald-400">Top-1%</th>
+                      <th class="p-2.5 text-right text-amber-400">3+ in 4</th>
+                      <th class="p-2.5 text-right text-yellow-300">4-Dog%</th>
+                      <th class="p-2.5 text-right text-cyan-300">5-Dog%</th>
+                      <th class="p-2.5 text-right font-bold text-purple-300">6-Dog%</th>
+                    </tr>
+                  </thead>
+                  <tbody id="learning-dist-tbody" class="divide-y divide-[#30363d]">
+                    <tr>
+                      <td colspan="7" class="p-4 text-center text-slate-500">Click "Refresh Audit" to load metrics.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Race-by-Race First 4 Audit Detail Card -->
+          <div class="card overflow-hidden">
+            <div class="p-3.5 card-header flex flex-wrap items-center justify-between gap-2.5">
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-list-check text-purple-400"></i>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-white">First 4 Race-by-Race Hit Audit
+                  (Predicted vs Actual)</h4>
+              </div>
+              <!-- Ticket Tier Filter Pills -->
+              <div class="flex items-center space-x-1.5 bg-navy-700 border border-navy-500 p-1 rounded-lg text-xs">
+                <span class="text-[10px] font-bold text-slate-400 uppercase px-1.5">View Filter:</span>
+                <button onclick="setAuditTierFilter('all')" id="audit-tier-btn-all"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-600 text-white transition">All</button>
+                <button onclick="setAuditTierFilter('6dog')" id="audit-tier-btn-6dog"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">6-Dog
+                  (Target)</button>
+                <button onclick="setAuditTierFilter('5dog')" id="audit-tier-btn-5dog"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">5-Dog</button>
+                <button onclick="setAuditTierFilter('4dog')" id="audit-tier-btn-4dog"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">4-Dog</button>
+                <button onclick="setAuditTierFilter('standout')" id="audit-tier-btn-standout"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-400 hover:text-white transition">Standout</button>
+              </div>
+              <div class="flex items-center space-x-3 text-[11px] text-slate-400">
+                <span id="first4-races-count" class="font-mono text-purple-300 font-bold">-- races</span>
+                <span>• Real-time model audit</span>
+              </div>
+            </div>
+            <div class="overflow-x-auto max-h-[520px]">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 bg-navy-600 text-slate-300 border-b border-navy-500 z-10">
+                  <tr>
+                    <th class="p-2.5 cursor-pointer hover:text-white transition select-none group"
+                      onclick="toggleAuditSort('race_time')" title="Click to sort by Race & Time">
+                      <div class="flex items-center space-x-1.5">
+                        <span class="group-hover:text-purple-300 transition">Race & Time</span>
+                        <i id="sort-icon-race_time"
+                          class="fa-solid fa-arrow-down-short-wide text-[11px] text-purple-400"></i>
+                      </div>
+                    </th>
+                    <th class="p-2.5 text-center cursor-pointer hover:text-white transition select-none group"
+                      onclick="toggleAuditSort('dist')" title="Click to sort by Distance">
+                      <div class="flex items-center justify-center space-x-1.5">
+                        <span class="group-hover:text-purple-300 transition">Dist / Grade</span>
+                        <i id="sort-icon-dist" class="fa-solid fa-sort text-[10px] text-slate-500"></i>
+                      </div>
+                    </th>
+                    <th class="p-2.5">Predicted Selections</th>
+                    <th class="p-2.5">Actual Official Top 4 (1st - 4th)</th>
+                    <th class="p-2.5 text-center cursor-pointer hover:text-white transition select-none group"
+                      onclick="toggleAuditSort('overlap')" title="Click to sort by Overlap">
+                      <div class="flex items-center justify-center space-x-1.5">
+                        <span class="group-hover:text-purple-300 transition">Overlap</span>
+                        <i id="sort-icon-overlap" class="fa-solid fa-sort text-[10px] text-slate-500"></i>
+                      </div>
+                    </th>
+                    <th class="p-2.5 text-right">Hit Badges</th>
+                  </tr>
+                </thead>
+                <tbody id="first4-races-tbody" class="divide-y divide-[#30363d]">
+                  <tr>
+                    <td colspan="6" class="p-6 text-center text-slate-500">Loading First 4 audit...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
 
     </section>
   </main>
 
   <!-- Greyhound Career Dossier Modal -->
-  <div id="dog-dossier-modal" onclick="if(event.target === this) closeDogDossier()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4 sm:p-6 transition-all duration-200">
-    <div class="bg-navy-700 border border-navy-500 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+  <div id="dog-dossier-modal" onclick="if(event.target === this) closeDogDossier()"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4 sm:p-6 transition-all duration-200">
+    <div
+      class="bg-navy-700 border border-navy-500 rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
       <!-- Modal Header -->
       <div class="p-4 border-b border-navy-500 flex items-center justify-between bg-[#0d1117]">
         <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-600 flex items-center justify-center text-emerald-400 text-lg shadow">
+          <div
+            class="w-10 h-10 rounded-lg bg-emerald-950/80 border border-emerald-600 flex items-center justify-center text-emerald-400 text-lg shadow">
             <i class="fa-solid fa-paw"></i>
           </div>
           <div>
             <div class="flex items-center space-x-2.5">
-              <h2 id="dossier-dog-name" class="text-base sm:text-lg font-black text-white tracking-wide uppercase">GREYHOUND NAME</h2>
-              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-700">CAREER DOSSIER</span>
+              <h2 id="dossier-dog-name" class="text-base sm:text-lg font-black text-white tracking-wide uppercase">
+                GREYHOUND NAME</h2>
+              <span
+                class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 border border-emerald-700">CAREER
+                DOSSIER</span>
             </div>
             <div id="dossier-dog-meta" class="text-xs text-slate-400 mt-0.5">Fetching career records...</div>
           </div>
         </div>
-        <button onclick="closeDogDossier()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-navy-600 transition text-sm">
+        <button onclick="closeDogDossier()"
+          class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-navy-600 transition text-sm">
           <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
@@ -896,98 +1677,293 @@
 
   <!-- JavaScript Client Logic -->
 
-      
-        <!-- View 5: Settings -->
-        <div id="view-settings" class="hidden space-y-6">
-          <div class="card p-6 border-navy-500 max-w-2xl">
-            <div class="flex items-center space-x-3 border-b border-navy-500 pb-4 mb-6">
-              <i class="fa-solid fa-gear text-accent-teal text-xl"></i>
-              <h2 class="text-lg font-bold text-white">Application Settings</h2>
+
+  <!-- Application Settings Modal Window -->
+  <div id="view-settings" onclick="if(event.target === this) closeSettings()"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden p-4 sm:p-6 transition-all duration-200">
+    <div class="card p-6 border-navy-500 max-w-xl w-full shadow-2xl relative">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-navy-500 pb-4 mb-5">
+        <div class="flex items-center space-x-2.5">
+          <i class="fa-solid fa-gear text-accent-teal text-xl"></i>
+          <h2 class="text-base sm:text-lg font-bold text-white">Application Settings</h2>
+        </div>
+        <button onclick="closeSettings()"
+          class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-navy-600 transition text-sm cursor-pointer"
+          title="Close Settings">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-6">
+        <!-- Display & Appearance -->
+        <div>
+          <h3 class="text-sm font-semibold text-slate-200 mb-1">Display & Theme</h3>
+          <p class="text-xs text-slate-400 mb-3">Choose visual appearance mode or toggle between dark and light themes.
+          </p>
+          <div class="max-w-xs">
+            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Color
+              Theme</label>
+            <select id="settings-theme" onchange="applyTheme(this.value)"
+              class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition cursor-pointer">
+              <option value="dark">Dark Theme (Standard)</option>
+              <option value="light">Light Theme (Clean Crisp)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="border-t border-navy-500 pt-5">
+          <h3 class="text-sm font-semibold text-slate-200 mb-1">Betting & Bankroll</h3>
+          <p class="text-xs text-slate-400 mb-3">Configure default staking parameters for backtesting and strategy
+            generation.</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Default Flat
+                Stake ($)</label>
+              <input type="number" id="settings-stake" value="10"
+                class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
             </div>
-            
-            <div class="space-y-6">
-              <div>
-                <h3 class="text-sm font-semibold text-slate-200 mb-1">Betting & Bankroll</h3>
-                <p class="text-xs text-slate-400 mb-4">Configure default staking parameters for backtesting and strategy generation.</p>
-                
-                <div class="grid grid-cols-2 gap-6">
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Default Flat Stake ($)</label>
-                    <input type="number" id="settings-stake" value="10" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Initial Bankroll ($)</label>
-                    <input type="number" id="settings-bankroll" value="1000" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
-                  </div>
-                  <div>
-                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Kelly Fraction</label>
-                    <input type="number" step="0.05" id="settings-kelly" value="0.25" class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
-                  </div>
-                </div>
-              </div>
-              
-              <div class="border-t border-navy-500 pt-6">
-                <button onclick="saveSettings()" class="bg-accent-teal hover:bg-cyan-400 text-navy-900 font-bold py-2 px-6 rounded transition shadow-lg flex items-center space-x-2">
-                  <i class="fa-solid fa-check"></i><span>Save Settings</span>
-                </button>
-              </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Initial Bankroll
+                ($)</label>
+              <input type="number" id="settings-bankroll" value="1000"
+                class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
+            </div>
+            <div class="col-span-2 sm:col-span-1">
+              <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Kelly
+                Fraction</label>
+              <input type="number" step="0.05" id="settings-kelly" value="0.25"
+                class="w-full bg-navy-900 border border-navy-500 rounded text-slate-200 px-3 py-2 focus:outline-none focus:border-accent-teal transition">
             </div>
           </div>
         </div>
-</div>
-    </section>
-  </main>
+
+        <div class="border-t border-navy-500 pt-5 flex items-center justify-between">
+          <button onclick="closeSettings()"
+            class="px-4 py-2 rounded-lg bg-navy-600 hover:bg-navy-500 text-slate-300 font-semibold transition cursor-pointer">
+            Cancel
+          </button>
+          <button onclick="saveSettings()"
+            class="bg-accent-teal hover:bg-cyan-400 text-navy-900 font-bold py-2 px-6 rounded transition shadow-lg flex items-center space-x-2 cursor-pointer">
+            <i class="fa-solid fa-check"></i><span>Save Settings</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation Bar (md:hidden) -->
+  <nav id="mobile-bottom-nav"
+    class="md:hidden bg-navy-700 border-t border-navy-500 flex items-center justify-around py-2 px-1 z-30 shrink-0 safe-area-bottom">
+    <button onclick="setMobileView('cards')" id="mob-nav-races"
+      class="flex flex-col items-center justify-center flex-1 py-1 text-accent-teal transition cursor-pointer">
+      <i class="fa-solid fa-ticket text-base mb-1"></i>
+      <span class="text-[10px] font-bold tracking-tight">Races</span>
+    </button>
+    <button onclick="setMobileView('workspace'); switchTab('analysis')" id="mob-nav-analysis"
+      class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition cursor-pointer">
+      <i class="fa-solid fa-chart-line text-base mb-1"></i>
+      <span class="text-[10px] font-medium tracking-tight">Analysis</span>
+    </button>
+    <button onclick="setMobileView('workspace'); switchTab('multis')" id="mob-nav-multis"
+      class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition cursor-pointer">
+      <i class="fa-solid fa-trophy text-base mb-1"></i>
+      <span class="text-[10px] font-medium tracking-tight">Multis</span>
+    </button>
+    <button onclick="setMobileView('workspace'); switchTab('learning')" id="mob-nav-learning"
+      class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition cursor-pointer">
+      <i class="fa-solid fa-brain text-base mb-1"></i>
+      <span class="text-[10px] font-medium tracking-tight">Audit</span>
+    </button>
+    <button onclick="openSettings()" id="mob-nav-settings"
+      class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition cursor-pointer">
+      <i class="fa-solid fa-gear text-base mb-1"></i>
+      <span class="text-[10px] font-medium tracking-tight">Settings</span>
+    </button>
+  </nav>
 
 
   <script>
     let currentFilter = 'upcoming';
-    
-// Settings Management
-function updateStakingLabels() {
-  const stake = getSetting('stake', 10);
-  const kelly = getSetting('kelly', 0.25);
-  const sel = document.getElementById('bt-staking');
-  if (sel && sel.options.length >= 2) {
-    sel.options[0].text = 'Flat ($' + Number(stake).toFixed(2).replace(/\.00$/, '') + ')';
-    sel.options[1].text = kelly + 'x Kelly';
-  }
-}
 
-function loadSettings() {
-  const s = localStorage.getItem('gpe_settings');
-  if(s) {
-    const settings = JSON.parse(s);
-    if(settings.stake) document.getElementById('settings-stake').value = settings.stake;
-    if(settings.bankroll) document.getElementById('settings-bankroll').value = settings.bankroll;
-    if(settings.kelly) document.getElementById('settings-kelly').value = settings.kelly;
-  }
-  updateStakingLabels();
-}
+    // Theme Management
+    function initTheme() {
+      const saved = localStorage.getItem('gpe_theme') || 'dark';
+      applyTheme(saved);
+    }
 
-function saveSettings() {
-  const settings = {
-    stake: document.getElementById('settings-stake').value || 10,
-    bankroll: document.getElementById('settings-bankroll').value || 1000,
-    kelly: document.getElementById('settings-kelly').value || 0.25
-  };
-  localStorage.setItem('gpe_settings', JSON.stringify(settings));
-  updateStakingLabels();
-  alert('Settings saved successfully!');
-}
+    function applyTheme(theme) {
+      const isLight = theme === 'light';
+      if (isLight) {
+        document.body.classList.add('light-theme');
+      } else {
+        document.body.classList.remove('light-theme');
+      }
+      localStorage.setItem('gpe_theme', theme);
 
-function getSetting(key, defValue) {
-  const s = localStorage.getItem('gpe_settings');
-  if(s) {
-    const settings = JSON.parse(s);
-    return settings[key] !== undefined ? settings[key] : defValue;
-  }
-  return defValue;
-}
+      // Update all theme toggle button icons and labels
+      const icons = document.querySelectorAll('.theme-toggle-icon');
+      icons.forEach(icon => {
+        if (isLight) {
+          icon.className = 'theme-toggle-icon fa-solid fa-moon text-xs';
+          if (icon.parentElement) {
+            icon.parentElement.classList.remove('text-amber-400', 'hover:text-amber-300');
+            icon.parentElement.classList.add('text-indigo-600', 'hover:text-indigo-500');
+          }
+        } else {
+          icon.className = 'theme-toggle-icon fa-solid fa-sun text-xs';
+          if (icon.parentElement) {
+            icon.parentElement.classList.remove('text-indigo-600', 'hover:text-indigo-500');
+            icon.parentElement.classList.add('text-amber-400', 'hover:text-amber-300');
+          }
+        }
+      });
 
-// Ensure settings load on startup
-document.addEventListener('DOMContentLoaded', loadSettings);
+      const label = document.getElementById('theme-toggle-label');
+      if (label) {
+        label.textContent = isLight ? 'Dark' : 'Light';
+      }
 
-let currentRaceId = null;
+      const settingsThemeSel = document.getElementById('settings-theme');
+      if (settingsThemeSel) {
+        settingsThemeSel.value = theme;
+      }
+    }
+
+    function toggleTheme() {
+      const current = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+    }
+
+    // Mobile View Management
+    let currentMobileView = 'cards'; // 'cards' | 'workspace'
+    let currentActiveTab = 'analysis';
+
+    function setMobileView(view) {
+      currentMobileView = view;
+      const cardsPanel = document.getElementById('race-cards-panel');
+      const workspacePanel = document.getElementById('workspace-panel');
+      if (!cardsPanel || !workspacePanel) return;
+
+      if (window.innerWidth < 768) {
+        if (view === 'cards') {
+          cardsPanel.classList.remove('hidden');
+          workspacePanel.classList.add('hidden');
+          workspacePanel.classList.remove('flex');
+        } else {
+          cardsPanel.classList.add('hidden');
+          workspacePanel.classList.remove('hidden');
+          workspacePanel.classList.add('flex');
+        }
+      } else {
+        cardsPanel.classList.remove('hidden');
+        workspacePanel.classList.remove('hidden');
+        workspacePanel.classList.add('flex');
+      }
+      updateMobileNavUI();
+    }
+
+    function updateMobileNavUI() {
+      const navMap = {
+        races: document.getElementById('mob-nav-races'),
+        analysis: document.getElementById('mob-nav-analysis'),
+        multis: document.getElementById('mob-nav-multis'),
+        learning: document.getElementById('mob-nav-learning'),
+        settings: document.getElementById('mob-nav-settings')
+      };
+
+      const activeKey = currentMobileView === 'cards' ? 'races' : currentActiveTab;
+
+      Object.entries(navMap).forEach(([key, btn]) => {
+        if (!btn) return;
+        const isActive = key === activeKey;
+        const span = btn.querySelector('span');
+        if (isActive) {
+          btn.className = "flex flex-col items-center justify-center flex-1 py-1 text-accent-teal font-bold transition cursor-pointer";
+          if (span) span.className = "text-[10px] font-bold tracking-tight text-accent-teal";
+        } else {
+          btn.className = "flex flex-col items-center justify-center flex-1 py-1 text-slate-400 hover:text-slate-200 transition cursor-pointer";
+          if (span) span.className = "text-[10px] font-medium tracking-tight";
+        }
+      });
+    }
+
+    // Settings Management
+    function updateStakingLabels() {
+      const stake = getSetting('stake', 10);
+      const kelly = getSetting('kelly', 0.25);
+      const sel = document.getElementById('bt-staking');
+      if (sel && sel.options.length >= 2) {
+        sel.options[0].text = 'Flat ($' + Number(stake).toFixed(2).replace(/\.00$/, '') + ')';
+        sel.options[1].text = kelly + 'x Kelly';
+      }
+    }
+
+    function openSettings() {
+      loadSettings();
+      const vSet = document.getElementById('view-settings');
+      if (vSet) vSet.classList.remove('hidden');
+    }
+
+    function closeSettings() {
+      const vSet = document.getElementById('view-settings');
+      if (vSet) vSet.classList.add('hidden');
+      const tSet = document.getElementById('tab-nav-settings');
+      if (tSet) tSet.className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
+    }
+
+    function loadSettings() {
+      const s = localStorage.getItem('gpe_settings');
+      if (s) {
+        const settings = JSON.parse(s);
+        if (settings.stake) document.getElementById('settings-stake').value = settings.stake;
+        if (settings.bankroll) document.getElementById('settings-bankroll').value = settings.bankroll;
+        if (settings.kelly) document.getElementById('settings-kelly').value = settings.kelly;
+        if (settings.theme) applyTheme(settings.theme);
+      } else {
+        initTheme();
+      }
+      const theme = localStorage.getItem('gpe_theme') || 'dark';
+      const sel = document.getElementById('settings-theme');
+      if (sel) sel.value = theme;
+      updateStakingLabels();
+    }
+
+    function saveSettings() {
+      const themeVal = document.getElementById('settings-theme')?.value || 'dark';
+      const settings = {
+        stake: document.getElementById('settings-stake').value || 10,
+        bankroll: document.getElementById('settings-bankroll').value || 1000,
+        kelly: document.getElementById('settings-kelly').value || 0.25,
+        theme: themeVal
+      };
+      localStorage.setItem('gpe_settings', JSON.stringify(settings));
+      applyTheme(themeVal);
+      updateStakingLabels();
+      closeSettings();
+    }
+
+    function getSetting(key, defValue) {
+      const s = localStorage.getItem('gpe_settings');
+      if (s) {
+        const settings = JSON.parse(s);
+        return settings[key] !== undefined ? settings[key] : defValue;
+      }
+      return defValue;
+    }
+
+    // Ensure settings & theme load on startup
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      loadSettings();
+      if (window.innerWidth < 768) {
+        setMobileView('cards');
+      }
+    });
+
+    let currentRaceId = null;
     let rawLoadedRaces = [];
     let prevThedogsRunning = false;
     let currentFetchedMultis = [];
@@ -1048,7 +2024,7 @@ let currentRaceId = null;
           const bannerText = document.getElementById('scraping-progress-text');
           if (banner && bannerText) {
             banner.classList.remove('hidden');
-            bannerText.textContent = 'Initiating race card fetch for Mandurah & upcoming tracks...';
+            bannerText.textContent = 'Initiating race card fetch for upcoming tracks...';
           }
         }
         const res = await fetch(`/api/actions/fetch-${action}`, { method: 'POST' });
@@ -1097,23 +2073,23 @@ let currentRaceId = null;
       const edgeClass = activeEdge && activeEdge > 0.02 ? 'text-accent-teal font-bold bg-emerald-950/40' : (activeEdge && activeEdge < -0.05 ? 'text-rose-400' : 'text-slate-400');
       const edgeFormatted = activeEdge !== null && activeEdge !== undefined ? `${(activeEdge * 100).toFixed(1)}%` : '-';
       const boxBadgeClass = `badge-box-${p.box || 1}`;
-      
-  const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
-  let finishBadge = '';
-  if (p.finish_position !== null && p.finish_position !== undefined) {
-    const pos = p.finish_position;
-    let rankStr = pos + (['st','nd','rd'][((pos+90)%100-10)%10-1]||'th');
-    let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' : 
-                  pos === 2 ? 'bg-slate-300 text-black shadow' : 
-                  pos === 3 ? 'bg-amber-700 text-white shadow' : 
-                  'bg-navy-700 text-slate-400 border border-navy-500';
-    finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
-  }
+
+      const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
+      let finishBadge = '';
+      if (p.finish_position !== null && p.finish_position !== undefined) {
+        const pos = p.finish_position;
+        let rankStr = pos + (['st', 'nd', 'rd'][((pos + 90) % 100 - 10) % 10 - 1] || 'th');
+        let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' :
+          pos === 2 ? 'bg-slate-300 text-black shadow' :
+            pos === 3 ? 'bg-amber-700 text-white shadow' :
+              'bg-navy-700 text-slate-400 border border-navy-500';
+        finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
+      }
 
 
       const sbWinStr = p.sportsbet_odds ? `$${Number(p.sportsbet_odds).toFixed(2)}` : '-';
       const sbPlaceStr = p.sportsbet_place_odds ? `$${Number(p.sportsbet_place_odds).toFixed(2)}` : '-';
-      
+
       // TheDogs SP or live market odds
       const theDogsPrice = (p.sp_odds !== undefined && p.sp_odds !== null) ? p.sp_odds : p.market_odds;
       let spStr;
@@ -1139,18 +2115,18 @@ let currentRaceId = null;
       let highlightPlace = false;
       const rank = p.model_rank || (idx + 1);
       if (arr && arr.length > 0 && p.sportsbet_place_odds && p.sportsbet_place_odds > 2.20) {
-          const activeRunners = arr.length;
-          const pays3rd = activeRunners >= 8;
-          if (pays3rd && rank <= 3) {
-              highlightPlace = true;
-          } else if (!pays3rd && rank <= 2) {
-              highlightPlace = true;
-          }
+        const activeRunners = arr.length;
+        const pays3rd = activeRunners >= 8;
+        if (pays3rd && rank <= 3) {
+          highlightPlace = true;
+        } else if (!pays3rd && rank <= 2) {
+          highlightPlace = true;
+        }
       }
-      
-      const placeClass = highlightPlace 
-          ? 'bg-emerald-950/60 text-emerald-300 font-extrabold border border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.3)] px-2 py-0.5 rounded'
-          : 'text-[#FFD700]/80';
+
+      const placeClass = highlightPlace
+        ? 'bg-emerald-950/60 text-emerald-300 font-extrabold border border-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.3)] px-2 py-0.5 rounded'
+        : 'text-[#FFD700]/80';
 
       return `
         <tr class="hover:bg-[#1f242c] transition">
@@ -1164,9 +2140,9 @@ let currentRaceId = null;
 ${finishBadge}
                 <i class="fa-solid fa-chart-line text-[10px] text-slate-500 group-hover:text-accent-teal"></i>
               </button>
-              ${p.sex ? (p.sex === 'B' 
-                ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-pink-950/80 text-pink-300 border border-pink-700/50" title="Bitch (Female)"><i class="fa-solid fa-venus mr-0.5 text-[8px]"></i>B</span>` 
-                : `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-950/80 text-blue-300 border border-blue-700/50" title="Dog (Male)"><i class="fa-solid fa-mars mr-0.5 text-[8px]"></i>D</span>`) : ''}
+              ${p.sex ? (p.sex === 'B'
+          ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-pink-950/80 text-pink-300 border border-pink-700/50" title="Bitch (Female)"><i class="fa-solid fa-venus mr-0.5 text-[8px]"></i>B</span>`
+          : `<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-950/80 text-blue-300 border border-blue-700/50" title="Dog (Male)"><i class="fa-solid fa-mars mr-0.5 text-[8px]"></i>D</span>`) : ''}
               ${p.today_weight || p.last_weight ? `<span class="text-[10px] font-mono text-slate-400 font-normal" title="Weight">${Number(p.today_weight || p.last_weight).toFixed(1)}kg</span>` : ''}
               ${p.expert_tip_rank ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-600/50" title="TheDogs Expert Tip #${p.expert_tip_rank}">Tip #${p.expert_tip_rank}</span>` : ''}
               ${p.tie_breaker_applied ? `<span class="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-600/50" title="${p.tie_breaker_note || 'Deadlock broken via Expert Consensus'}"><i class="fa-solid fa-scale-balanced mr-0.5"></i>Tie-Break</span>` : ''}
@@ -1300,8 +2276,8 @@ ${finishBadge}
         const th = document.getElementById(`th-col-${col}`);
         if (icon) {
           if (currentSortColumn === col) {
-            icon.className = currentSortDirection === 'desc' 
-              ? 'fa-solid fa-arrow-down-wide-short text-[10px] text-accent-teal ml-1' 
+            icon.className = currentSortDirection === 'desc'
+              ? 'fa-solid fa-arrow-down-wide-short text-[10px] text-accent-teal ml-1'
               : 'fa-solid fa-arrow-up-wide-short text-[10px] text-accent-teal ml-1';
           } else {
             icon.className = 'fa-solid fa-sort text-[9px] text-slate-500 ml-1 opacity-40 group-hover:opacity-100 transition';
@@ -1322,7 +2298,7 @@ ${finishBadge}
       const nameEl = document.getElementById('dossier-dog-name');
       const metaEl = document.getElementById('dossier-dog-meta');
       const bodyEl = document.getElementById('dossier-body');
-      
+
       nameEl.textContent = (dogName || 'Greyhound').toUpperCase();
       metaEl.textContent = 'Analyzing historical form, sectionals and track personal bests...';
       bodyEl.innerHTML = `
@@ -1356,7 +2332,10 @@ ${finishBadge}
     }
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeDogDossier();
+      if (e.key === 'Escape') {
+        closeDogDossier();
+        closeSettings();
+      }
     });
 
     function renderDossierContent(d, fallbackName) {
@@ -1369,8 +2348,8 @@ ${finishBadge}
       const winRate = starts > 0 ? ((wins / starts) * 100).toFixed(1) : '0.0';
       const plcRate = starts > 0 ? (((wins + seconds + thirds) / starts) * 100).toFixed(1) : '0.0';
 
-      const sexTag = d.sex ? (d.sex === 'B' 
-        ? '<span class="text-pink-400 font-bold ml-1.5"><i class="fa-solid fa-venus mr-1"></i>Bitch (B)</span>' 
+      const sexTag = d.sex ? (d.sex === 'B'
+        ? '<span class="text-pink-400 font-bold ml-1.5"><i class="fa-solid fa-venus mr-1"></i>Bitch (B)</span>'
         : '<span class="text-blue-400 font-bold ml-1.5"><i class="fa-solid fa-mars mr-1"></i>Dog (D)</span>') : '';
 
       metaEl.innerHTML = `
@@ -1448,17 +2427,17 @@ ${finishBadge}
               </thead>
               <tbody class="divide-y divide-[#30363d]">
                 ${d.career_runs.map(r => {
-                  const plc = String(r.finish_pos || '');
-                  let plcBadge = 'bg-gray-800 text-[#C0C0C0]';
-                  if (plc.includes('1st') || plc === '1') plcBadge = 'bg-amber-500 text-black font-bold';
-                  else if (plc.includes('2nd') || plc === '2') plcBadge = 'bg-slate-300 text-black font-bold';
-                  else if (plc.includes('3rd') || plc === '3') plcBadge = 'bg-amber-700 text-white font-bold';
-                  
-                  const boxBadge = r.box ? `badge-box-${r.box}` : 'bg-gray-700 text-white';
-                  const marginStr = r.margin !== null && r.margin !== undefined ? (Number(r.margin) === 0 ? 'Won' : `${Number(r.margin).toFixed(2)}L`) : '-';
-                  const spStr = r.sp_odds ? `$${Number(r.sp_odds).toFixed(2)}` : '-';
+          const plc = String(r.finish_pos || '');
+          let plcBadge = 'bg-gray-800 text-[#C0C0C0]';
+          if (plc.includes('1st') || plc === '1') plcBadge = 'bg-amber-500 text-black font-bold';
+          else if (plc.includes('2nd') || plc === '2') plcBadge = 'bg-slate-300 text-black font-bold';
+          else if (plc.includes('3rd') || plc === '3') plcBadge = 'bg-amber-700 text-white font-bold';
 
-                  return `
+          const boxBadge = r.box ? `badge-box-${r.box}` : 'bg-gray-700 text-white';
+          const marginStr = r.margin !== null && r.margin !== undefined ? (Number(r.margin) === 0 ? 'Won' : `${Number(r.margin).toFixed(2)}L`) : '-';
+          const spStr = r.sp_odds ? `$${Number(r.sp_odds).toFixed(2)}` : '-';
+
+          return `
                     <tr class="hover:bg-[#1f242c] transition">
                       <td class="p-2">
                         <span class="inline-block px-1.5 py-0.5 rounded text-[10px] ${plcBadge}">${plc || '-'}</span>
@@ -1476,7 +2455,7 @@ ${finishBadge}
                       <td class="p-2 text-slate-400 text-[11px]">${r.weight ? Number(r.weight).toFixed(1) + 'kg' : '-'}${r.sex ? (r.sex === 'B' ? ' <span class="text-pink-400 font-semibold">(B)</span>' : ' <span class="text-blue-400 font-semibold">(D)</span>') : ''}</td>
                     </tr>
                   `;
-                }).join('')}
+        }).join('')}
               </tbody>
             </table>
           </div>
@@ -1527,7 +2506,7 @@ ${finishBadge}
       const select = document.getElementById('track-select-filter');
       if (!select) return;
       const currentSelected = select.value;
-      
+
       const counts = {};
       races.forEach(r => {
         if (r.track) {
@@ -1558,7 +2537,7 @@ ${finishBadge}
         filtered = filtered.filter(r => r.track === selectedTrack);
       }
       if (query) {
-        filtered = filtered.filter(r => 
+        filtered = filtered.filter(r =>
           (r.track && r.track.toLowerCase().includes(query)) ||
           (r.race_name && r.race_name.toLowerCase().includes(query)) ||
           (`r${r.race_number}`.toLowerCase().includes(query))
@@ -1573,17 +2552,16 @@ ${finishBadge}
       container.innerHTML = filtered.map(r => {
         const displayTime = r.start_time !== 'TBD' ? formatRaceTime(r.start_time) : r.status;
         const countdownBadge = r.countdown && r.status === 'Upcoming' ? `
-          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${
-            r.countdown === 'Jumping Now' ? 'bg-red-900/80 text-red-200 border border-red-700 animate-pulse' :
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${r.countdown === 'Jumping Now' ? 'bg-red-900/80 text-red-200 border border-red-700 animate-pulse' :
             r.countdown === 'In Run' ? 'bg-amber-900/80 text-amber-200 border border-amber-700' :
-            'bg-accent-teal/20/60 text-emerald-300 border border-emerald-700'
+              'bg-accent-teal/20/60 text-emerald-300 border border-emerald-700'
           }">
             ${r.countdown}
           </span>
         ` : '';
 
         return `
-          <div onclick="selectRace(${r.id})" class="p-3 hover:bg-navy-600 cursor-pointer transition flex items-center justify-between ${currentRaceId === r.id ? 'bg-navy-600 border-l-4 border-emerald-500' : ''}">
+          <div onclick="selectRace(${r.id}, true)" class="p-3 hover:bg-navy-600 cursor-pointer transition flex items-center justify-between ${currentRaceId === r.id ? 'bg-navy-600 border-l-4 border-emerald-500' : ''}">
             <div>
               <div class="flex items-center space-x-2">
                 <span class="font-bold text-white">${r.track}</span>
@@ -1611,7 +2589,7 @@ ${finishBadge}
       }).join('');
 
       if (!currentRaceId && filtered.length > 0) {
-        selectRace(filtered[0].id);
+        selectRace(filtered[0].id, false);
       }
     }
 
@@ -1637,9 +2615,14 @@ ${finishBadge}
       }
     }
 
-    async function selectRace(raceId) {
+    async function selectRace(raceId, userInitiated = false) {
       currentRaceId = raceId;
       filterRaces();
+
+      if (userInitiated && window.innerWidth < 768) {
+        setMobileView('workspace');
+        switchTab('analysis');
+      }
 
       try {
         const res = await fetch(`/api/races/${raceId}`);
@@ -1647,6 +2630,8 @@ ${finishBadge}
 
         // Header Update
         selectedRaceTitle = `${data.race.track} R${data.race.race_number}`;
+        const mobInd = document.getElementById('mobile-top-race-indicator');
+        if (mobInd) mobInd.textContent = selectedRaceTitle;
         const formattedJump = formatRaceTime(data.race.start_time);
         document.getElementById('race-badge-track').textContent = data.race.track.toUpperCase();
         document.getElementById('race-title').textContent = `${data.race.track} Race ${data.race.race_number} (${data.race.race_name || ''})`;
@@ -1724,20 +2709,20 @@ ${finishBadge}
           ];
 
           let gridHtml = data.predictions.slice(0, 4).map((p, idx) => {
-            const meta = placeLabels[idx] || { pos: `${idx+1}th`, label: 'TOP 4', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
+            const meta = placeLabels[idx] || { pos: `${idx + 1}th`, label: 'TOP 4', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
             const boxBadgeClass = `badge-box-${p.box || 1}`;
-            
-  const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
-  let finishBadge = '';
-  if (p.finish_position !== null && p.finish_position !== undefined) {
-    const pos = p.finish_position;
-    let rankStr = pos + (['st','nd','rd'][((pos+90)%100-10)%10-1]||'th');
-    let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' : 
-                  pos === 2 ? 'bg-slate-300 text-black shadow' : 
-                  pos === 3 ? 'bg-amber-700 text-white shadow' : 
-                  'bg-navy-700 text-slate-400 border border-navy-500';
-    finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
-  }
+
+            const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
+            let finishBadge = '';
+            if (p.finish_position !== null && p.finish_position !== undefined) {
+              const pos = p.finish_position;
+              let rankStr = pos + (['st', 'nd', 'rd'][((pos + 90) % 100 - 10) % 10 - 1] || 'th');
+              let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' :
+                pos === 2 ? 'bg-slate-300 text-black shadow' :
+                  pos === 3 ? 'bg-amber-700 text-white shadow' :
+                    'bg-navy-700 text-slate-400 border border-navy-500';
+              finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
+            }
 
             return `
               <div class="bg-navy-600 p-3 rounded-lg border ${meta.border} flex flex-col justify-between shadow">
@@ -1768,7 +2753,7 @@ ${finishBadge}
             const rOdds = roughie.best_odds || roughie.sportsbet_odds || roughie.market_odds;
             const rOddsStr = rOdds ? '$' + Number(rOdds).toFixed(2) : '$' + Number(roughie.fair_win_odds || 0).toFixed(2);
             const rTags = (roughie.upside_tags || roughie.roughie_tags || []).slice(0, 2).map(t => `<span class="bg-amber-950/80 text-amber-300 border border-amber-600/40 px-1 py-0.5 rounded text-[8px] font-bold truncate max-w-[110px] block">${t}</span>`).join('');
-            
+
             gridHtml += `
               <div class="bg-gradient-to-b from-[#1a1510] to-[#16212d] p-3 rounded-lg border-2 border-amber-500 shadow-lg shadow-amber-950/40 flex flex-col justify-between ring-1 ring-amber-400/50 relative overflow-hidden">
                 <div class="flex items-center justify-between mb-1.5">
@@ -1827,18 +2812,18 @@ ${finishBadge}
               const hypeGridHtml = hypeRanked.slice(0, 5).map((item, idx) => {
                 const p = item.runner;
                 const hypeVal = item.hype;
-                const meta = hypePlaceLabels[idx] || { pos: `${idx+1}th Hype`, label: 'CONTENDER', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
+                const meta = hypePlaceLabels[idx] || { pos: `${idx + 1}th Hype`, label: 'CONTENDER', badge: 'bg-gray-700 text-white', border: 'border-gray-700' };
                 const boxBadgeClass = `badge-box-${p.box || 1}`;
                 const safeDogName = (p.dog_name || '').replace(/"/g, '&quot;');
-                
+
                 let finishBadge = '';
                 if (p.finish_position !== null && p.finish_position !== undefined) {
                   const pos = p.finish_position;
-                  let rankStr = pos + (['st','nd','rd'][((pos+90)%100-10)%10-1]||'th');
-                  let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' : 
-                                pos === 2 ? 'bg-slate-300 text-black shadow' : 
-                                pos === 3 ? 'bg-amber-700 text-white shadow' : 
-                                'bg-navy-700 text-slate-400 border border-navy-500';
+                  let rankStr = pos + (['st', 'nd', 'rd'][((pos + 90) % 100 - 10) % 10 - 1] || 'th');
+                  let bgClass = pos === 1 ? 'bg-amber-400 text-black shadow' :
+                    pos === 2 ? 'bg-slate-300 text-black shadow' :
+                      pos === 3 ? 'bg-amber-700 text-white shadow' :
+                        'bg-navy-700 text-slate-400 border border-navy-500';
                   finishBadge = `<span class="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${bgClass} whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Finished ${rankStr}</span>`;
                 }
 
@@ -2184,12 +3169,12 @@ ${finishBadge}
           <!-- Structure Toggle Pills -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${(est.available_structures || []).map(s => {
-              const isSelected = (currentStruct === s.structure);
-              const isRec = s.is_recommended;
-              const activeCls = isSelected
-                ? 'bg-teal-500 text-black font-extrabold ring-2 ring-teal-300 shadow-md'
-                : 'bg-navy-800 text-slate-300 hover:bg-navy-700 hover:text-white border border-navy-600';
-              return `
+        const isSelected = (currentStruct === s.structure);
+        const isRec = s.is_recommended;
+        const activeCls = isSelected
+          ? 'bg-teal-500 text-black font-extrabold ring-2 ring-teal-300 shadow-md'
+          : 'bg-navy-800 text-slate-300 hover:bg-navy-700 hover:text-white border border-navy-600';
+        return `
                 <button onclick="setExoticStructure('${type}', ${raceId}, '${s.structure}')" class="p-2 rounded-lg text-left transition flex flex-col justify-between ${activeCls}">
                   <div class="flex items-center justify-between">
                     <span class="text-xs font-bold truncate">${s.label.split(' (')[0]}</span>
@@ -2201,7 +3186,7 @@ ${finishBadge}
                   </div>
                 </button>
               `;
-            }).join('')}
+      }).join('')}
           </div>
 
           <!-- Interactive Key Anchor Selector (Active for Standout, Dual Banker, Roving Banker) -->
@@ -2213,15 +3198,15 @@ ${finishBadge}
                 </span>
                 <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
                   ${(est.selected_runners || []).map(r => {
-                    const isAnchor = (r.box === est.anchor_box);
-                    return `
+        const isAnchor = (r.box === est.anchor_box);
+        return `
                       <button onclick="setExoticAnchor('${type}', ${raceId}, ${r.box})" class="flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono transition border ${isAnchor ? 'bg-amber-500 text-black font-extrabold border-amber-300 shadow' : 'bg-navy-700 text-slate-300 border-navy-600 hover:border-slate-400'}">
                         <span class="badge-box-${r.box} w-4 h-4 rounded text-[9px] font-bold inline-flex items-center justify-center">${r.box}</span>
                         <span>${r.name.split(' ')[0]}</span>
                         ${isAnchor ? '<i class="fa-solid fa-lock text-[8px] ml-0.5"></i>' : ''}
                       </button>
                     `;
-                  }).join('')}
+      }).join('')}
                 </div>
               </div>
               ${currentStruct === 'dual_banker' ? `
@@ -2231,15 +3216,15 @@ ${finishBadge}
                   </span>
                   <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
                     ${(est.selected_runners || []).filter(r => r.box !== est.anchor_box).map(r => {
-                      const isSec = (r.box === est.secondary_anchor);
-                      return `
+        const isSec = (r.box === est.secondary_anchor);
+        return `
                         <button onclick="setExoticSecondaryAnchor('${type}', ${raceId}, ${r.box})" class="flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-mono transition border ${isSec ? 'bg-cyan-500 text-black font-extrabold border-cyan-300 shadow' : 'bg-navy-700 text-slate-300 border-navy-600 hover:border-slate-400'}">
                           <span class="badge-box-${r.box} w-4 h-4 rounded text-[9px] font-bold inline-flex items-center justify-center">${r.box}</span>
                           <span>${r.name.split(' ')[0]}</span>
                           ${isSec ? '<i class="fa-solid fa-lock text-[8px] ml-0.5"></i>' : ''}
                         </button>
                       `;
-                    }).join('')}
+      }).join('')}
                   </div>
                 </div>
               ` : ''}
@@ -2257,7 +3242,7 @@ ${finishBadge}
               <span>Projected Avg Dividend</span>
               <i class="fa-solid fa-coins text-amber-400"></i>
             </div>
-            <div class="font-mono text-xl font-black text-amber-300 mb-1">$${Number(est.est_avg_dividend || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div class="font-mono text-xl font-black text-amber-300 mb-1">$${Number(est.est_avg_dividend || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div class="text-[11px] font-mono text-slate-300 pt-1.5 border-t border-navy-600 flex justify-between">
               <span>Your Payout (${est.flexi_percent}%):</span>
               <span class="font-bold text-emerald-400">$${Number(est.projected_avg_payout || 0).toFixed(2)}</span>
@@ -2331,8 +3316,8 @@ ${finishBadge}
             </div>
             <div class="bg-amber-950/40 p-2.5 rounded border border-amber-600/40">
               <span class="text-[10px] text-amber-300 uppercase font-bold block">${isTri ? 'Upset Ceiling (Longshot Trifecta)' : 'Upset Ceiling (Roughie Podiums)'}</span>
-              <span class="font-mono text-base font-black text-amber-300 block">$${Number(est.est_max_dividend || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Tote</span>
-              <span class="text-[10px] font-mono text-amber-200 font-bold">Pays $${Number(est.projected_max_payout || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+              <span class="font-mono text-base font-black text-amber-300 block">$${Number(est.est_max_dividend || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Tote</span>
+              <span class="text-[10px] font-mono text-amber-200 font-bold">Pays $${Number(est.projected_max_payout || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         </div>
@@ -2493,7 +3478,7 @@ ${finishBadge}
       // Determine URL based on current race selection & srmModeActive
       let url = `/api/multis?min_total_odds=${minOdds}&odds_source=${oddsSource}`;
       const typeFilterContainer = document.getElementById('srm-type-filter-container');
-      
+
       if (currentRaceId && srmModeActive) {
         url += `&race_id=${currentRaceId}`;
         toggleContainer.classList.remove('hidden');
@@ -2512,10 +3497,10 @@ ${finishBadge}
       try {
         const res = await fetch(url);
         const data = await res.json();
-        
+
         currentFetchedMultis = data.multis || [];
         currentFetchedIsSrm = data.is_srm;
-        
+
         renderFilteredMultis();
 
       } catch (e) {
@@ -2530,9 +3515,9 @@ ${finishBadge}
       const filterValue = filterSelect ? filterSelect.value : 'all';
 
       let displayMultis = currentFetchedMultis;
-      
+
       if (filterValue !== 'all') {
-          displayMultis = displayMultis.filter(m => m.type === filterValue);
+        displayMultis = displayMultis.filter(m => m.type === filterValue);
       }
 
       if (displayMultis.length === 0) {
@@ -2593,7 +3578,7 @@ ${finishBadge}
         const pulseEl = document.getElementById('daemon-pulse');
         const textEl = document.getElementById('daemon-status-text');
         const btnToggle = document.getElementById('btn-daemon-toggle');
-        
+
         if (d.enabled) {
           if (d.last_status_message && d.last_status_message.includes('Sleeping (Zzz)')) {
             pulseEl.className = 'w-2 h-2 rounded-full bg-blue-400 inline-block';
@@ -2664,7 +3649,7 @@ ${finishBadge}
         document.getElementById('bt-stat-races').textContent = `Across ${data.total_races_analyzed || 0} races`;
         document.getElementById('bt-stat-sr').textContent = `${(data.strike_rate_pct || 0).toFixed(1)}%`;
         document.getElementById('bt-stat-wins').textContent = `${data.winning_bets || 0}W / ${data.losing_bets || 0}L`;
-        
+
         const pnlEl = document.getElementById('bt-stat-pnl');
         const netProfit = data.net_profit || 0;
         pnlEl.textContent = (netProfit >= 0 ? '+$' : '-$') + Math.abs(netProfit).toFixed(2);
@@ -2786,7 +3771,7 @@ ${finishBadge}
         // Update Track & Distance Filter dropdowns dynamically if options not populated
         if (trackFilter && data.available_tracks) {
           const curVal = trackFilter.value;
-          const optionsHtml = '<option value="">All Locations</option>' + 
+          const optionsHtml = '<option value="">All Locations</option>' +
             data.available_tracks.map(t => `<option value="${t}" ${t === curVal ? 'selected' : ''}>${t}</option>`).join('');
           if (trackFilter.children.length <= 1 || trackFilter.children.length !== (data.available_tracks.length + 1)) {
             trackFilter.innerHTML = optionsHtml;
@@ -2795,7 +3780,7 @@ ${finishBadge}
 
         if (distFilter && data.available_distances) {
           const curVal = distFilter.value;
-          const distOptionsHtml = '<option value="">All Distances</option>' + 
+          const distOptionsHtml = '<option value="">All Distances</option>' +
             data.available_distances.map(d => `<option value="${d}" ${String(d) === String(curVal) ? 'selected' : ''}>${d}m</option>`).join('');
           if (distFilter.children.length <= 1 || distFilter.children.length !== (data.available_distances.length + 1)) {
             distFilter.innerHTML = distOptionsHtml;
@@ -3029,8 +4014,8 @@ ${finishBadge}
         const el = document.getElementById(`sort-icon-${c}`);
         if (el) {
           if (auditSortCol === c) {
-            el.className = (auditSortDir === 'asc') 
-              ? 'fa-solid fa-arrow-down-short-wide text-[11px] text-purple-400' 
+            el.className = (auditSortDir === 'asc')
+              ? 'fa-solid fa-arrow-down-short-wide text-[11px] text-purple-400'
               : 'fa-solid fa-arrow-up-wide-short text-[11px] text-purple-400';
           } else {
             el.className = 'fa-solid fa-sort text-[10px] text-slate-500';
@@ -3126,26 +4111,26 @@ ${finishBadge}
         // Badges formatting
         const badgesHtml = (r.badges && r.badges.length > 0)
           ? r.badges.map(b => {
-              if (b === 'EXACT F4') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-black border border-amber-300 shadow">${b}</span>`;
-              } else if (b === '4-DOG F4') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/25 text-yellow-300 border border-yellow-500/60 shadow-sm">${b}</span>`;
-              } else if (b === '5-DOG F4') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">${b}</span>`;
-              } else if (b === '6-DOG F4') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/25 text-purple-200 border border-purple-500/60">${b}</span>`;
-              } else if (b === 'STANDOUT F4') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-300 border border-orange-500/50">${b}</span>`;
-              } else if (b === 'EXACT TRI' || b === 'TRIFECTA') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">${b}</span>`;
-              } else if (b.includes('SRM')) {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">${b}</span>`;
-              } else if (b === 'TOP 1 WIN') {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">${b}</span>`;
-              } else {
-                return `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">${b}</span>`;
-              }
-            }).join(' ')
+            if (b === 'EXACT F4') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-black border border-amber-300 shadow">${b}</span>`;
+            } else if (b === '4-DOG F4') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/25 text-yellow-300 border border-yellow-500/60 shadow-sm">${b}</span>`;
+            } else if (b === '5-DOG F4') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">${b}</span>`;
+            } else if (b === '6-DOG F4') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/25 text-purple-200 border border-purple-500/60">${b}</span>`;
+            } else if (b === 'STANDOUT F4') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-300 border border-orange-500/50">${b}</span>`;
+            } else if (b === 'EXACT TRI' || b === 'TRIFECTA') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/40">${b}</span>`;
+            } else if (b.includes('SRM')) {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">${b}</span>`;
+            } else if (b === 'TOP 1 WIN') {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/50">${b}</span>`;
+            } else {
+              return `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">${b}</span>`;
+            }
+          }).join(' ')
           : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-500 border border-slate-700">MISS</span>';
 
         return `
@@ -3176,19 +4161,25 @@ ${finishBadge}
     }
 
     function switchTab(tab) {
+      if (tab === 'settings') {
+        openSettings();
+        return;
+      }
+
+      currentActiveTab = tab;
+      if (window.innerWidth < 768) {
+        setMobileView('workspace');
+      }
+
       document.getElementById('view-analysis').classList.add('hidden');
       document.getElementById('view-multis').classList.add('hidden');
       document.getElementById('view-backtest').classList.add('hidden');
       document.getElementById('view-learning').classList.add('hidden');
-      const vSet = document.getElementById('view-settings');
-      if (vSet) vSet.classList.add('hidden');
 
       document.getElementById('tab-nav-analysis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
       document.getElementById('tab-nav-multis').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
       document.getElementById('tab-nav-backtest').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
       document.getElementById('tab-nav-learning').className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
-      const tSet = document.getElementById('tab-nav-settings');
-      if (tSet) tSet.className = 'pb-3 text-slate-400 hover:text-white flex items-center space-x-2 transition';
 
       if (tab === 'analysis') {
         document.getElementById('view-analysis').classList.remove('hidden');
@@ -3202,17 +4193,32 @@ ${finishBadge}
         document.getElementById('view-backtest').classList.remove('hidden');
         document.getElementById('tab-nav-backtest').className = 'pb-3 active-tab flex items-center space-x-2 transition';
         runBacktest();
-      } else if (tab === 'settings') {
-        if (vSet) vSet.classList.remove('hidden');
-        if (tSet) tSet.className = 'pb-3 active-tab flex items-center space-x-2 transition';
       } else if (tab === 'learning') {
         document.getElementById('view-learning').classList.remove('hidden');
         document.getElementById('tab-nav-learning').className = 'pb-3 active-tab flex items-center space-x-2 transition';
         runLearningAudit();
       }
+      updateMobileNavUI();
     }
 
+    // Resize handling for mobile & desktop layouts
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768) {
+        document.getElementById('race-cards-panel')?.classList.remove('hidden');
+        document.getElementById('workspace-panel')?.classList.remove('hidden');
+        document.getElementById('workspace-panel')?.classList.add('flex');
+      } else {
+        setMobileView(currentMobileView);
+      }
+    });
+
     // Initial Load
+    initTheme();
+    loadSettings();
+    if (window.innerWidth < 768) {
+      setMobileView('cards');
+    }
+
     const todayIso = new Date().toISOString().split('T')[0];
     const dateInput = document.getElementById('learning-date-input');
     if (dateInput && !dateInput.value) {
@@ -3249,4 +4255,6 @@ ${finishBadge}
       }
     }, 15000);
   </script>
-</body></html>
+</body>
+
+</html>
