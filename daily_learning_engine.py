@@ -584,7 +584,7 @@ class DailyLearningEngine:
                     nll += -math.log(max(1e-6, w_prob))
                 return nll / len(valid_race_ids)
 
-            opt_res = minimize_scalar(objective, bounds=(1.4, 3.2), method="bounded")
+            opt_res = minimize_scalar(objective, bounds=(2.20, 3.2), method="bounded")
             optimal_temp = round(float(opt_res.x), 2)
             calibrated_log_loss = round(float(opt_res.fun), 4)
 

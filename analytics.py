@@ -339,7 +339,7 @@ class GreyhoundAnalytics:
             cursor.execute("SELECT temperature FROM track_calibrations WHERE UPPER(track_name) = ? OR ? LIKE ('%' || UPPER(track_name) || '%')", (t_key, t_key))
             row = cursor.fetchone()
             if row and row[0]:
-                cal_temp = float(max(1.4, min(3.2, row[0])))
+                cal_temp = float(max(2.20, min(3.2, row[0])))
                 self._track_temp_cache[t_key] = cal_temp
                 return cal_temp
         except Exception:
@@ -1921,6 +1921,15 @@ class GreyhoundAnalytics:
                     elif m["box"] in (4, 5, 6): box_factor = min(0.90, box_factor)
                 else:  # 600m stayers
                     if m["box"] in (1, 2): box_factor = max(1.12, box_factor)
+            elif "MURRAY BRIDGE STRAIGHT" in track_upper:
+                # Murray Bridge Straight (SA Premier 300m / 350m Straight Track)
+                # Outside drag and guide camber favor outside sweepers (Boxes 7 & 8) and middle pace
+                if m["box"] in (7, 8):
+                    box_factor = max(1.22, box_factor) if m.get("speed_rank", 5) <= 3 else max(1.12, box_factor)
+                elif m["box"] in (3, 4, 6):
+                    box_factor = max(1.08, box_factor)
+                elif m["box"] in (1, 2):
+                    box_factor = max(1.06, box_factor) if m.get("speed_rank", 5) <= 2 else min(0.96, box_factor)
             elif "MURRAY BRIDGE" in track_upper and not "STRAIGHT" in track_upper:
                 if m["box"] in (1, 2): box_factor = max(1.15, box_factor)
                 elif m["box"] in (5, 6): box_factor = min(0.90, box_factor)
